@@ -15,7 +15,7 @@ static const int DEFAULT_WINDOW_WIDTH = 800;
 static const int DEFAULT_WINDOW_HEIGHT = 600;
 
 static const int PLAYER_WIDTH = 100;
-static const int PLAYER_HEIGHT = 20;
+static const int PLAYER_HEIGHT = 15;
 static const int PLAYER_SPEED = 5;
 
 static void sleep_ms(int ms) {
@@ -102,9 +102,11 @@ int main() {
         case SDL_KEYDOWN:
           switch (event.key.keysym.sym) {
             case SDLK_LEFT:
+            case SDLK_a:
               movement = -PLAYER_SPEED;
               break;
             case SDLK_RIGHT:
+            case SDLK_d:
               movement = PLAYER_SPEED;
               break;
           }
