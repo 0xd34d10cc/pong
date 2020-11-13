@@ -1,11 +1,11 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 
-#include <SDL2/SDL.h>
-
-#ifdef __linux__
-#include <unistd.h>
+#ifdef _WIN32
+#define SDL_MAIN_HANDLED
 #endif
+#include <SDL2/SDL.h>
 
 typedef int bool;
 #define true 1
@@ -18,26 +18,15 @@ static const int PLAYER_WIDTH = 100;
 static const int PLAYER_HEIGHT = 15;
 static const int PLAYER_SPEED = 5;
 
-static void sleep_ms(int ms) {
-#ifdef __linux__
-  useconds_t usec = ms * 1000;
-  usleep(usec);
-#else
-#error sleep_ms is not implemented for target platform
-#endif
-}
-
-static int min(int x, int y) {
-  return x < y ? x : y;
-}
-
-static int max(int x, int y) {
-  return x > y ? x : y;
+static int clamp(int x, int min, int max) {
+  if (x < min) return min;
+  if (x > max) return max;
+  return x;
 }
 
 // todo: add levels
 // todo: log time
-static void pong_log(const char* format, ...) {
+static void game_log(const char* format, ...) {
   char buffer[1024];
 
   va_list args;
@@ -49,21 +38,24 @@ static void pong_log(const char* format, ...) {
   fprintf(stderr, fmt, buffer);
 }
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
   if (argc > 1) {
-    pong_log("Unexpected number of arguments: got %d, expected 0", argc - 1);
+    game_log("Unexpected number of arguments: got %d, expected 0", argc - 1);
     return EXIT_FAILURE;
   }
 
-  // init SDL2
+#ifdef _WIN32
+  SDL_SetMainReady();
+#endif
+
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    pong_log("Could not initialize SDL: %s", SDL_GetError());
+    game_log("Could not initialize SDL: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   SDL_version v;
   SDL_GetVersion(&v);
-  pong_log("SDL version is %d.%d.%d", v.major, v.minor, v.patch);
+  game_log("%s SDL %d.%d.%d", SDL_GetPlatform(), v.major, v.minor, v.patch);
 
   // init context (window, renderer, game state)
   SDL_Window* window = SDL_CreateWindow(
@@ -76,13 +68,13 @@ int main(int argc, const char* argv[]) {
   );
 
   if (!window) {
-    pong_log("Failed to create window: %s", SDL_GetError());
+    game_log("Failed to create window: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   SDL_Renderer* renderer = SDL_CreateRenderer(window, -1 /* todo: gpu index */, 0 /* todo: flags */);
   if (!renderer) {
-    pong_log("Failed to create renderer: %s", SDL_GetError());
+    game_log("Failed to create renderer: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
 
@@ -124,7 +116,7 @@ int main(int argc, const char* argv[]) {
     SDL_GetWindowSize(window, &window_width, &window_height);
 
     // update state
-    player.x = min(max(player.x + movement, 0), window_width - PLAYER_WIDTH),
+    player.x = clamp(player.x + movement, 0, window_width - PLAYER_WIDTH);
 
     // render
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
@@ -134,12 +126,12 @@ int main(int argc, const char* argv[]) {
     SDL_RenderPresent(renderer);
 
     // wait for next frame
-    sleep_ms(16);
+    SDL_Delay(16);
   }
 
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
-  pong_log("Closed successfully");
+  game_log("Closed successfully");
   return EXIT_SUCCESS;
 }
