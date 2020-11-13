@@ -23,8 +23,7 @@ static void sleep_ms(int ms) {
   useconds_t usec = ms * 1000;
   usleep(usec);
 #else
-  // todo
-  abort();
+#error sleep_ms is not implemented for target platform
 #endif
 }
 
@@ -43,13 +42,19 @@ static void pong_log(const char* format, ...) {
 
   va_list args;
   va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
+  int n = vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
 
-  fprintf(stderr, "[log] %s\n", buffer);
+  const char* fmt = n <= sizeof(buffer) ? "[log] %s\n" : "[log] %s...\n";
+  fprintf(stderr, fmt, buffer);
 }
 
-int main() {
+int main(int argc, const char* argv[]) {
+  if (argc > 1) {
+    pong_log("Unexpected number of arguments: got %d, expected 0", argc - 1);
+    return EXIT_FAILURE;
+  }
+
   // init SDL2
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     pong_log("Could not initialize SDL: %s", SDL_GetError());
