@@ -22,7 +22,7 @@ static void sleep_ms(int ms) {
 // todo: log time
 static void pong_log(const char* format, ...) {
   char buffer[1024];
-  
+
   va_list args;
   va_start(args, format);
   vsnprintf(buffer, sizeof(buffer), format, args);
@@ -44,9 +44,9 @@ int main() {
 
   // init context (window, renderer, game state)
   SDL_Window* window = SDL_CreateWindow(
-      "pong", 
-      SDL_WINDOWPOS_UNDEFINED, 
-      SDL_WINDOWPOS_UNDEFINED, 
+      "pong",
+      SDL_WINDOWPOS_UNDEFINED,
+      SDL_WINDOWPOS_UNDEFINED,
       800, 600, 0 // todo: flags
   );
 
@@ -58,6 +58,7 @@ int main() {
   SDL_Renderer* renderer = SDL_CreateRenderer(window, -1 /* todo: gpu index */, 0 /* todo: flags */);
   if (!renderer) {
     pong_log("Failed to create renderer: %s", SDL_GetError());
+    return EXIT_FAILURE;
   }
 
   bool running = true;
@@ -72,10 +73,28 @@ int main() {
       }
     }
 
+    int window_height;
+    int window_width;
+    SDL_GetWindowSize(window, &window_width, &window_height);
+
     // update state
+    static const int PLAYER_WIDTH = 100;
+    static const int PLAYER_HEIGHT = 20;
+
+    SDL_Rect player = {
+      .x = 300,
+      .y = window_height - PLAYER_HEIGHT,
+      .w = PLAYER_WIDTH,
+      .h = PLAYER_HEIGHT,
+    };
 
     // render
-    
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0xb0, 0xb0, 0xb0, 0xff);
+    SDL_RenderFillRect(renderer, &player);
+    SDL_RenderPresent(renderer);
+
     // wait for next frame
     sleep_ms(16);
   }

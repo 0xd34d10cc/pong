@@ -1,3 +1,3 @@
-# /usr/bin/bash
+#! /usr/bin/bash
 
-clang -o pong src/*.c -Werror=implicit-function-declaration -lSDL2
+clang -o pong src/*.c -Werror=implicit-function-declaration -Werror=implicit-int -lSDL2
