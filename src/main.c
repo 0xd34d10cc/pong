@@ -3,19 +3,37 @@
 
 #include <SDL2/SDL.h>
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 typedef int bool;
 #define true 1
 #define false 0
 
-#ifdef __linux__
-#include <unistd.h>
-#endif
+static const int DEFAULT_WINDOW_WIDTH = 800;
+static const int DEFAULT_WINDOW_HEIGHT = 600;
+
+static const int PLAYER_WIDTH = 100;
+static const int PLAYER_HEIGHT = 20;
+static const int PLAYER_SPEED = 5;
 
 static void sleep_ms(int ms) {
-  // todo: implementation for windows
+#ifdef __linux__
   useconds_t usec = ms * 1000;
   usleep(usec);
+#else
+  // todo
+  abort();
+#endif
+}
+
+static int min(int x, int y) {
+  return x < y ? x : y;
+}
+
+static int max(int x, int y) {
+  return x > y ? x : y;
 }
 
 // todo: add levels
@@ -47,7 +65,9 @@ int main() {
       "pong",
       SDL_WINDOWPOS_UNDEFINED,
       SDL_WINDOWPOS_UNDEFINED,
-      800, 600, 0 // todo: flags
+      DEFAULT_WINDOW_WIDTH,
+      DEFAULT_WINDOW_HEIGHT,
+      0 // todo: flags
   );
 
   if (!window) {
@@ -61,14 +81,33 @@ int main() {
     return EXIT_FAILURE;
   }
 
+  SDL_Rect player = {
+    .x = DEFAULT_WINDOW_WIDTH / 2 - PLAYER_WIDTH / 2,
+    .y = DEFAULT_WINDOW_HEIGHT - PLAYER_HEIGHT,
+    .w = PLAYER_WIDTH,
+    .h = PLAYER_HEIGHT
+  };
+
   bool running = true;
   while (running) {
+    int movement = 0;
+
     // process events
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
         case SDL_QUIT:
           running = false;
+          break;
+        case SDL_KEYDOWN:
+          switch (event.key.keysym.sym) {
+            case SDLK_LEFT:
+              movement = -PLAYER_SPEED;
+              break;
+            case SDLK_RIGHT:
+              movement = PLAYER_SPEED;
+              break;
+          }
           break;
       }
     }
@@ -78,15 +117,7 @@ int main() {
     SDL_GetWindowSize(window, &window_width, &window_height);
 
     // update state
-    static const int PLAYER_WIDTH = 100;
-    static const int PLAYER_HEIGHT = 20;
-
-    SDL_Rect player = {
-      .x = 300,
-      .y = window_height - PLAYER_HEIGHT,
-      .w = PLAYER_WIDTH,
-      .h = PLAYER_HEIGHT,
-    };
+    player.x = min(max(player.x + movement, 0), window_width - PLAYER_WIDTH),
 
     // render
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
