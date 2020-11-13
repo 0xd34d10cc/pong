@@ -98,6 +98,11 @@ int main(int argc, char* argv[]) {
           break;
         case SDL_KEYDOWN:
           switch (event.key.keysym.scancode) {
+            case SDL_SCANCODE_Q:
+              if (SDL_GetModState() & KMOD_LCTRL) {
+                running = false;
+              }
+              break;
           }
           break;
       }
@@ -123,6 +128,7 @@ int main(int argc, char* argv[]) {
     SDL_RenderPresent(renderer);
 
     // wait for next frame
+    // todo: proper game loop time management
     SDL_Delay(16);
   }
 
