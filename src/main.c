@@ -137,8 +137,8 @@ int main(int argc, const char* argv[]) {
     sleep_ms(16);
   }
 
-  SDL_DestroyWindow(window);
   SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(window);
   SDL_Quit();
   pong_log("Closed successfully");
   return EXIT_SUCCESS;
