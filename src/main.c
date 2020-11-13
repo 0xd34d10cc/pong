@@ -103,7 +103,11 @@ int main(int argc, char* argv[]) {
                 running = false;
               }
               break;
+            default:
+              break;
           }
+          break;
+        default:
           break;
       }
     }
