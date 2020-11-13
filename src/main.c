@@ -97,26 +97,23 @@ int main(int argc, char* argv[]) {
           running = false;
           break;
         case SDL_KEYDOWN:
-          switch (event.key.keysym.sym) {
-            case SDLK_LEFT:
-            case SDLK_a:
-              movement = -PLAYER_SPEED;
-              break;
-            case SDLK_RIGHT:
-            case SDLK_d:
-              movement = PLAYER_SPEED;
-              break;
+          switch (event.key.keysym.scancode) {
           }
           break;
       }
     }
 
-    int window_height;
-    int window_width;
-    SDL_GetWindowSize(window, &window_width, &window_height);
+    const Uint8* state = SDL_GetKeyboardState(NULL);
+    if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]) {
+      movement = -PLAYER_SPEED;
+    }
+
+    if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]) {
+      movement = PLAYER_SPEED;
+    }
 
     // update state
-    player.x = clamp(player.x + movement, 0, window_width - PLAYER_WIDTH);
+    player.x = clamp(player.x + movement, 0, DEFAULT_WINDOW_WIDTH - PLAYER_WIDTH);
 
     // render
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
