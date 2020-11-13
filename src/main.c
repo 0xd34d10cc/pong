@@ -6,7 +6,6 @@
 #define SDL_MAIN_HANDLED
 #endif
 #include <SDL2/SDL.h>
-
 typedef int bool;
 #define true 1
 #define false 0
@@ -18,10 +17,18 @@ static const int PLAYER_WIDTH = 100;
 static const int PLAYER_HEIGHT = 15;
 static const int PLAYER_SPEED = 5;
 
+static const int BALL_WIDTH = 30;
+static const int BALL_HEIGHT = 30;
+
+
 static int clamp(int x, int min, int max) {
   if (x < min) return min;
   if (x > max) return max;
   return x;
+}
+
+static bool in_range(int x, int left, int right) {
+  return !(x < left || x > right);
 }
 
 // todo: add levels
@@ -85,6 +92,20 @@ int main(int argc, char* argv[]) {
     .h = PLAYER_HEIGHT
   };
 
+  SDL_Rect ball = {
+    .x = DEFAULT_WINDOW_WIDTH / 2,
+    .y = DEFAULT_WINDOW_HEIGHT / 2,
+    .w = BALL_WIDTH,
+    .h = BALL_HEIGHT
+  };
+  
+  // TODO: add path checking
+  SDL_Surface* image = SDL_LoadBMP("lose.bmp");
+  SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, image);
+
+  int ball_speed_x = PLAYER_SPEED - 2;
+  int ball_speed_y = PLAYER_SPEED - 2;
+  bool lost = false;
   bool running = true;
   while (running) {
     int movement = 0;
@@ -112,6 +133,12 @@ int main(int argc, char* argv[]) {
       }
     }
 
+    if (lost) {
+	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_RenderPresent(renderer);
+	SDL_Delay(100);
+	continue;
+    }
     const Uint8* state = SDL_GetKeyboardState(NULL);
     if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]) {
       movement = -PLAYER_SPEED;
@@ -123,11 +150,37 @@ int main(int argc, char* argv[]) {
 
     // update state
     player.x = clamp(player.x + movement, 0, DEFAULT_WINDOW_WIDTH - PLAYER_WIDTH);
+    ball.x = clamp(ball.x + ball_speed_x, 0, DEFAULT_WINDOW_WIDTH - BALL_WIDTH); 
+    ball.y = clamp(ball.y + ball_speed_y, 0, DEFAULT_WINDOW_HEIGHT - BALL_HEIGHT);
 
+    // floor/wall hit handling
+    if (ball.x == 0 || ball.x == DEFAULT_WINDOW_WIDTH - BALL_WIDTH) {
+	ball_speed_x *= -1;
+	game_log("X hit");
+    }
+    
+    if (ball.y == 0 || ball.y == DEFAULT_WINDOW_HEIGHT - BALL_HEIGHT) {
+    	ball_speed_y *= -1;
+	game_log("Y hit");
+	lost = ball.y == DEFAULT_WINDOW_HEIGHT - BALL_HEIGHT;
+    }
+
+    int low_bound_y = ball.y + BALL_HEIGHT;
+    // player hit
+    if (in_range(low_bound_y, player.y, player.y+ball_speed_y) && 
+	in_range(ball.x, player.x, player.x+PLAYER_WIDTH)) {
+	game_log("y's are same");
+	ball_speed_y *= -1;
+	ball_speed_y < 0 ? ball_speed_y-- : ball_speed_y++;
+	ball_speed_x++;
+	// not sure if it's needed
+	//ball_speed_x *= -1;
+    }
     // render
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0xb0, 0xb0, 0xb0, 0xff);
+    SDL_RenderFillRect(renderer, &ball);
     SDL_RenderFillRect(renderer, &player);
     SDL_RenderPresent(renderer);
 
@@ -136,6 +189,8 @@ int main(int argc, char* argv[]) {
     SDL_Delay(16);
   }
 
+  SDL_DestroyTexture(texture);
+  SDL_FreeSurface(image);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
