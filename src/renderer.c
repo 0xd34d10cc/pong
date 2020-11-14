@@ -1,26 +1,30 @@
 #include "renderer.h"
 #include "game.h"
+#include "log.h"
 
 #include <SDL2/SDL_render.h>
 
 
-const char* renderer_init(Renderer* renderer, SDL_Window* window) {
+int renderer_init(Renderer* renderer, SDL_Window* window) {
   renderer->backend = SDL_CreateRenderer(window, -1 /* any gpu */, 0 /* todo: flags */);
   if (!renderer->backend) {
-    return SDL_GetError();
+    LOG_ERROR("Failed to create renderer: %s", SDL_GetError());
+    return -1;
   }
 
   renderer->lost_image = SDL_LoadBMP("lose.bmp");
   if (!renderer->lost_image) {
-    return SDL_GetError();
+    LOG_ERROR("Failed to load loser image: %s", SDL_GetError());
+    return -1;
   }
 
   renderer->lost_texture = SDL_CreateTextureFromSurface(renderer->backend, renderer->lost_image);
   if (!renderer->lost_texture) {
-    return SDL_GetError();
+    LOG_ERROR("Failed to create texture: %s", SDL_GetError());
+    return -1;
   }
 
-  return NULL;
+  return 0;
 }
 
 void renderer_close(Renderer* renderer) {
@@ -34,24 +38,21 @@ static void render_lost(Renderer* renderer) {
 }
 
 static void render_running(Renderer* renderer, Game* game) {
-  int ball_x;
-  int ball_y;
-  int player_x;
-  game_positions(game, &player_x, &ball_x, &ball_y);
-
   SDL_Rect player = {
-    .x = player_x,
+    .x = 0,
     .y = DEFAULT_WINDOW_HEIGHT - PLAYER_HEIGHT,
     .w = PLAYER_WIDTH,
     .h = PLAYER_HEIGHT
   };
 
   SDL_Rect ball = {
-    .x = ball_x,
-    .y = ball_y,
+    .x = 0,
+    .y = 0,
     .w = BALL_WIDTH,
     .h = BALL_HEIGHT
   };
+
+  game_positions(game, &player.x, &ball.x, &ball.y);
 
   SDL_SetRenderDrawColor(renderer->backend, 0xb0, 0xb0, 0xb0, 0xff);
   SDL_RenderFillRect(renderer->backend, &ball);

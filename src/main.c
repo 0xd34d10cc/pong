@@ -1,6 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
 
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
@@ -9,24 +7,12 @@
 
 #include "game.h"
 #include "renderer.h"
+#include "log.h"
 
-// todo: add levels
-// todo: log time
-static void game_log(const char* format, ...) {
-  char buffer[1024];
-
-  va_list args;
-  va_start(args, format);
-  int n = vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-
-  const char* fmt = n <= sizeof(buffer) ? "[log] %s\n" : "[log] %s...\n";
-  fprintf(stderr, fmt, buffer);
-}
 
 int main(int argc, char* argv[]) {
   if (argc > 1) {
-    game_log("Unexpected number of arguments: got %d, expected 0", argc - 1);
+    LOG_ERROR("Unexpected number of arguments: got %d, expected 0", argc - 1);
     return EXIT_FAILURE;
   }
 
@@ -35,13 +21,13 @@ int main(int argc, char* argv[]) {
 #endif
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    game_log("Could not initialize SDL: %s", SDL_GetError());
+    LOG_ERROR("Could not initialize SDL: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   SDL_version v;
   SDL_GetVersion(&v);
-  game_log("%s SDL %d.%d.%d", SDL_GetPlatform(), v.major, v.minor, v.patch);
+  LOG_INFO("%s SDL %d.%d.%d", SDL_GetPlatform(), v.major, v.minor, v.patch);
 
   // init context (window, renderer, game state)
   SDL_Window* window = SDL_CreateWindow(
@@ -54,14 +40,12 @@ int main(int argc, char* argv[]) {
   );
 
   if (!window) {
-    game_log("Failed to create window: %s", SDL_GetError());
+    LOG_ERROR("Failed to create window: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   Renderer renderer;
-  const char* error = renderer_init(&renderer, window);
-  if (error != NULL) {
-    game_log("Failed to initialize renderer: %s", renderer);
+  if (renderer_init(&renderer, window)) {
     return EXIT_FAILURE;
   }
 
@@ -120,6 +104,6 @@ int main(int argc, char* argv[]) {
   renderer_close(&renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
-  game_log("Closed successfully");
+  LOG_INFO("Closed successfully");
   return EXIT_SUCCESS;
 }

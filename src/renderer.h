@@ -13,8 +13,8 @@ typedef struct {
     SDL_Texture* lost_texture;
 } Renderer;
 
-// returns NULL on success, error message on failure
-const char* renderer_init(Renderer* renderer, SDL_Window* window);
+// returns 0 on success
+int renderer_init(Renderer* renderer, SDL_Window* window);
 void renderer_render(Renderer* renderer, Game* game);
 void renderer_close(Renderer* renderer);
 
