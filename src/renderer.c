@@ -36,11 +36,11 @@ static void render_lost(Renderer* renderer) {
 static void render_running(Renderer* renderer, Game* game) {
   int ball_x;
   int ball_y;
-  int player_mid;
-  game_positions(game, &player_mid, &ball_x, &ball_y);
+  int player_x;
+  game_positions(game, &player_x, &ball_x, &ball_y);
 
   SDL_Rect player = {
-    .x = player_mid - PLAYER_WIDTH / 2,
+    .x = player_x,
     .y = DEFAULT_WINDOW_HEIGHT - PLAYER_HEIGHT,
     .w = PLAYER_WIDTH,
     .h = PLAYER_HEIGHT

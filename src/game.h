@@ -17,7 +17,7 @@ typedef int bool;
 typedef struct Game {
   int state;
 
-  int player_pos;
+  int player_x;
   int player_dx;
 
   int ball_x;
@@ -25,7 +25,6 @@ typedef struct Game {
 
   int ball_dx;
   int ball_dy;
-
 
   int board_width;
   int board_height;
