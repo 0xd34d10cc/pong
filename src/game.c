@@ -89,7 +89,9 @@ void game_step_end(Game* game, int ms) {
   // player hit
   int player_y = game->board_height - PLAYER_HEIGHT;
   if (in_range(low_bound_y, player_y, player_y + game->ball_dy) &&
-      in_range(game->ball_x, game->player_pos - PLAYER_WIDTH / 2, game->player_pos + PLAYER_WIDTH / 2)) {
+      in_range(game->ball_x,
+        game->player_pos - PLAYER_WIDTH / 2 - BALL_WIDTH,
+        game->player_pos + PLAYER_WIDTH / 2 + BALL_WIDTH)) {
     game->ball_dy = -game->ball_dy;
     game->ball_dy < 0 ? game->ball_dy-- : game->ball_dy++;
     game->ball_dx < 0 ? game->ball_dx-- : game->ball_dx++;
