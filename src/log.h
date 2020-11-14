@@ -2,9 +2,9 @@
 #define LOG_H
 
 typedef enum {
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_WARNING,
-    LOG_LEVEL_ERROR
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_WARNING,
+  LOG_LEVEL_ERROR
 } LogLevel;
 
 void game_log(LogLevel level, const char* format, ...);
