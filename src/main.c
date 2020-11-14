@@ -8,9 +8,7 @@
 #include <SDL2/SDL.h>
 
 #include "game.h"
-
-static const int DEFAULT_WINDOW_WIDTH = 800;
-static const int DEFAULT_WINDOW_HEIGHT = 600;
+#include "renderer.h"
 
 // todo: add levels
 // todo: log time
@@ -60,15 +58,12 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1 /* todo: gpu index */, 0 /* todo: flags */);
-  if (!renderer) {
-    game_log("Failed to create renderer: %s", SDL_GetError());
+  Renderer renderer;
+  const char* error = renderer_init(&renderer, window);
+  if (error != NULL) {
+    game_log("Failed to initialize renderer: %s", renderer);
     return EXIT_FAILURE;
   }
-
-  // TODO: add path checking
-  SDL_Surface* image = SDL_LoadBMP("lose.bmp");
-  SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, image);
 
   Game game;
   game_init(&game, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
@@ -103,16 +98,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    GameState state = game_state(&game);
-    if (state == LOST) {
-      SDL_RenderCopy(renderer, texture, NULL, NULL);
-      SDL_RenderPresent(renderer);
-      SDL_Delay(100);
-      continue;
-    }
-
     const Uint8* kb = SDL_GetKeyboardState(NULL);
-
     if (kb[SDL_SCANCODE_LEFT] || kb[SDL_SCANCODE_A]) {
       game_event(&game, EVENT_MOVE_LEFT);
     }
@@ -124,40 +110,14 @@ int main(int argc, char* argv[]) {
     game_step_end(&game, 16);
 
     // render
-    int ball_x;
-    int ball_y;
-    int player_mid;
-    game_positions(&game, &player_mid, &ball_x, &ball_y);
-
-    SDL_Rect player = {
-      .x = player_mid - PLAYER_WIDTH / 2,
-      .y = DEFAULT_WINDOW_HEIGHT - PLAYER_HEIGHT,
-      .w = PLAYER_WIDTH,
-      .h = PLAYER_HEIGHT
-    };
-
-    SDL_Rect ball = {
-      .x = ball_x,
-      .y = ball_y,
-      .w = BALL_WIDTH,
-      .h = BALL_HEIGHT
-    };
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 0xb0, 0xb0, 0xb0, 0xff);
-    SDL_RenderFillRect(renderer, &ball);
-    SDL_RenderFillRect(renderer, &player);
-    SDL_RenderPresent(renderer);
+    renderer_render(&renderer, &game);
 
     // wait for next frame
     // todo: proper game loop time management
     SDL_Delay(16);
   }
 
-  SDL_DestroyTexture(texture);
-  SDL_FreeSurface(image);
-  SDL_DestroyRenderer(renderer);
+  renderer_close(&renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
   game_log("Closed successfully");

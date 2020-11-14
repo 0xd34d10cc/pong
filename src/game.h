@@ -7,11 +7,14 @@
 #define BALL_WIDTH 30
 #define BALL_HEIGHT 30
 
+#define DEFAULT_WINDOW_WIDTH 800
+#define DEFAULT_WINDOW_HEIGHT 600
+
 typedef int bool;
 #define true 1
 #define false 0
 
-typedef struct {
+typedef struct Game {
   int state;
 
   int player_pos;
@@ -29,8 +32,8 @@ typedef struct {
 } Game;
 
 typedef enum {
-  RUNNING,
-  LOST
+  STATE_RUNNING,
+  STATE_LOST
 } GameState;
 
 typedef enum {
