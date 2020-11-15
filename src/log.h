@@ -9,8 +9,9 @@ typedef enum {
 
 void game_log(LogLevel level, const char* format, ...);
 
-#define LOG_INFO(format, ...) game_log(LOG_LEVEL_INFO, (format), __VA_ARGS__)
-#define LOG_WARN(foramt, ...) game_log(LOG_LEVEL_WARNING, (format), __VA_ARGS__)
-#define LOG_ERROR(format, ...) game_log(LOG_LEVEL_ERROR, (format), __VA_ARGS__)
+#define VA_COMMA(...) , __VA_ARGS__
+#define LOG_INFO(...) game_log(LOG_LEVEL_INFO, __VA_ARGS__)
+#define LOG_WARN(...) game_log(LOG_LEVEL_WARNING, __VA_ARGS__)
+#define LOG_ERROR(...) game_log(LOG_LEVEL_ERROR, __VA_ARGS__)
 
 #endif // LOG_H
