@@ -12,7 +12,8 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
-  renderer->lost_image = SDL_LoadBMP("lose.bmp");
+  // todo: embed the image into binary
+  renderer->lost_image = SDL_LoadBMP("resources/lose.bmp");
   if (!renderer->lost_image) {
     LOG_ERROR("Failed to load loser image: %s", SDL_GetError());
     return -1;
