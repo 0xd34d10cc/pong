@@ -8,4 +8,4 @@ clang -o pong scu.c \
       -Werror=implicit-function-declaration \
       -Werror=implicit-int \
       -I../game \
-			-lSDL2
+      -lSDL2

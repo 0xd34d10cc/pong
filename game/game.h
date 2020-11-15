@@ -7,6 +7,7 @@
 #define BALL_WIDTH 30
 #define BALL_HEIGHT 30
 
+// FIXME: these are client only definitions
 #define DEFAULT_WINDOW_WIDTH 800
 #define DEFAULT_WINDOW_HEIGHT 600
 
