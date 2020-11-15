@@ -1,3 +1,4 @@
+#include "log.c"
 #include "connection_utils.c"
 #include "messages.c"
 #include "connection.c"
