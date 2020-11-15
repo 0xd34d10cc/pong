@@ -3,12 +3,26 @@
 
 #include "messages.h"
 
-// len(255.255.255.255:50000) - 21 + 1 (zero terminated code)    
+
+enum SessionStatus {
+  // 1 Player has connected, waiting for another
+  Created = 0,
+  // 2 Player has connected, waiting for start
+  Pending = 1,
+  // Playing
+  InProgress = 2,
+  // Closed by any of players
+  Closed = 3,
+  // Invalid status
+  Invalid = 4
+};
+
 struct ConnectionStorage {    
-  char player1_addr[22];    
-  char player2_addr[22];    
+  int player1_sock;    
+  int player2_sock;    
   int pw_size;     
-  char pw[PWDEFAULTSIZE];    
+  char pw[PWDEFAULTSIZE];
+  enum SessionStatus status;
 } ConnectionStorage;    
     
 struct ConnectionMap {    
