@@ -1,3 +1,4 @@
 client/pong
+server/server
 bin/
 *.dll
