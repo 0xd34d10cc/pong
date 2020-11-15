@@ -26,7 +26,10 @@ int accept_connection(int server_socket) {
     perror("Accept error");
     return -1;
   }
-
+  printf("accepted\n");
+//  char addr_str[INET_ADDRSTRLEN];
+//  inet_ntop(AF_INET, &client_addr, addr_str, INET_ADDRSTRLEN);
+//  printf("accepted connection: %s /n", addr_str);
   return accepted_sock;
 }
 
@@ -159,8 +162,8 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
   FD_SET(server_sock, &current_sockets);
 
   while (1) {
-  
-    ready_sockets = current_sockets;
+    memcpy(&ready_sockets, &current_sockets, sizeof(current_sockets)); 
+    //ready_sockets = current_sockets;
     // just read for now
     if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0) {
       perror("select error");
@@ -175,8 +178,8 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
           
           int client_sock = accept_connection(i);
           if (client_sock == -1) return;
-
-          FD_CLR(client_sock, &current_sockets);
+          
+          FD_SET(client_sock, &current_sockets);
         } 
 
         // handle connection
