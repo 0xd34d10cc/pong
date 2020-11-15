@@ -15,10 +15,6 @@ enum StatusCode {
   WrongPassword
 };
 
-void handleCreateGameSession(struct CreateGameSessionMsg* msg, struct ConnectionMap* con_map) {
-
-}
-
 int main(int argc, char* argv[]) {
   static int session_counter = 0;
   // ./server 127.0.0.1 1337
