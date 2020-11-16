@@ -9,12 +9,6 @@
 
 #define MAXMSGSIZE 120
 
-enum StatusCode {
-  OK = 0,
-  WrongSessionID,
-  WrongPassword
-};
-
 int main(int argc, char* argv[]) {
   static int session_counter = 0;
   // ./server 127.0.0.1 1337

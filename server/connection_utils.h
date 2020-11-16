@@ -3,7 +3,7 @@
 
 #include "messages.h"
 
-
+// Status that indicate status of inner server
 enum SessionStatus {
   // 1 Player has connected, waiting for another
   Created = 0,
@@ -15,6 +15,19 @@ enum SessionStatus {
   Closed = 3,
   // Invalid status
   Invalid = 4
+};
+
+// Status that we provide to end users about connection success or failure
+enum ClientStatus {
+  // Successfully connected to the game session
+  Connected = 0,
+  // Provided Wrong session ID
+  WrongSessionId = 1,
+  // Provided Wrong password for existing session
+  WrongPassword = 2,
+
+  // Invalid status means that something went wrong
+  InvalidStatus = 3
 };
 
 struct ConnectionStorage {    
@@ -33,5 +46,7 @@ struct ConnectionMap {
 } ConnectionMap;    
 
 void insert(struct ConnectionMap* map, int id, struct ConnectionStorage* connect);
+
+struct ConnectionStorage* get_storage(struct ConnectionMap* map, int id);
 
 #endif // CONNECTION_UTILS_H

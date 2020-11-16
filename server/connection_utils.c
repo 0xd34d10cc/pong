@@ -29,3 +29,24 @@ void insert(struct ConnectionMap* map, int id, struct ConnectionStorage* connect
 }    
 
 
+struct ConnectionStorage* get_storage(struct ConnectionMap* map, int id) {
+  if (map->id == id) {
+    return &map->connection_storage;
+  }
+
+  if (map->id < id) {
+    if (map->right) {
+      return get_storage(map->right, id);
+    } else {
+      return NULL;
+    }
+  }
+
+  if (map->id > id) {
+    if (map->left) {
+      return get_storage(map->left, id);
+    } else {
+      return NULL;
+    }
+  }
+}

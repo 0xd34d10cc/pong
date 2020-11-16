@@ -44,7 +44,7 @@ struct SendStatusMsg {
      
 struct NotifyUserMsg {    
   short id;    
-  int ipv4;    
+  char ipv4[16];    
   int status_code;    
 };    
 

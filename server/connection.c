@@ -18,6 +18,13 @@
 
 int static session_counter = 0;
 
+void get_ip_str(int sock, char* str) {
+  struct sockaddr_in addr;
+  socklen_t addr_size = sizeof(struct sockaddr_in);
+  int res = getpeername(sock, (struct sockaddr *)&addr, &addr_size);
+  strcpy(str, inet_ntoa(addr.sin_addr));
+}
+
 int accept_connection(int server_socket) {
   int addr_size = sizeof(struct sockaddr_in);
   int client_socket;
@@ -64,6 +71,83 @@ int setup_server(char* ip, char* port) {
   return sock;
 }
 
+void send_status(enum ClientStatus status, int client_sock) {
+  struct SendStatusMsg msg = {0};
+  msg.id = SENDSTATUSID;
+  msg.status_code = status;
+
+  char buf[BUFFSIZE];
+
+  //TODO serialize(char* buf, SendStatusMsg)
+  int msg_size = 0;
+  msg_size += sizeof(msg.id);
+  msg_size += sizeof(msg.status_code);
+
+  // 4 bytes for msg size
+  msg_size += sizeof(int);
+
+
+  // serialization
+  int offset = 0;
+  
+  memcpy(buf + offset, &msg_size, sizeof(msg_size));
+  offset += sizeof(int); 
+
+  memcpy(buf + offset, &msg.id, sizeof(msg.id));
+  offset += sizeof(msg.id);
+
+  memcpy(buf + offset, &msg.status_code, sizeof(msg.status_code));
+
+  int send_res = send(client_sock, buf, msg_size, 0);
+  if (send_res == -1) {
+    perror("send failed");
+  }
+
+  LOG_INFO("SendStatus message sent to user with status code: %d", msg.status_code);
+}
+
+void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
+  struct NotifyUserMsg msg = {0};
+  msg.status_code = status;
+  memcpy(msg.ipv4, addr_str, INET_ADDRSTRLEN);
+  msg.id = NOTIFYUSERID;
+  
+  char buf[BUFFSIZE];
+
+  //TODO: Serialize(char* buf, NotifyUserMsg)
+  int msg_size = 0;
+
+  msg_size += sizeof(msg.id);
+  msg_size += sizeof(msg.status_code);
+  msg_size += sizeof(msg.ipv4); // INET_ADDRSTRLEN
+  
+  // 4 bytes for msg size
+  msg_size += sizeof(int);
+
+
+  // serialization
+  int offset = 0;
+  memcpy(buf + offset, &msg_size, sizeof(msg_size));
+  offset += sizeof(msg_size);
+
+  memcpy(buf + offset, &msg.id, sizeof(msg.id));
+  offset += sizeof(msg.id);
+
+  memcpy(buf + offset, &msg.ipv4, sizeof(msg.ipv4));
+  offset += sizeof(msg.ipv4);
+
+  memcpy(buf + offset, &msg.status_code, sizeof(msg.status_code));
+
+  // send to client
+
+  int send_res = send(client_sock, buf, msg_size, 0);
+  if (send_res == -1) {
+    perror("send failed");
+  }
+
+  LOG_INFO("NotifyUser message sent to user with status code: %d", msg.status_code);
+}
+
 void send_session(int session_id, int client_sock) {
   struct SendSessionMsg msg = {0};
   msg.id = SENDSESSIONID; 
@@ -95,6 +179,8 @@ void send_session(int session_id, int client_sock) {
   if (send_res == -1) {
     perror("send failed");
   }
+
+  LOG_INFO("SendSession message sent to user with id: %d", session_id);
 }
 
 
@@ -142,7 +228,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
       offset += sizeof(int);
 
       if (cgs_msg.pw_size > PWDEFAULTSIZE) {
-        printf("password is shrinked to %d characters", PWDEFAULTSIZE);
+        LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
         cgs_msg.pw_size = PWDEFAULTSIZE;
       }
       
@@ -157,7 +243,67 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
     }
 
     if (ConnectToSession == msg_type) {
-      // TODO: implement
+      LOG_INFO("ConnectToSession message received");
+
+      int offset = 4;
+      struct ConnectToSessionMsg cts_msg = {0};
+      memcpy(&cts_msg.id, msg + offset, sizeof(cts_msg.id));
+      offset += sizeof(cts_msg.id);
+
+      memcpy(&cts_msg.session_id, msg + offset, sizeof(cts_msg.session_id));
+      offset += sizeof(cts_msg.session_id);
+
+      memcpy(&cts_msg.pw_size, msg + offset, sizeof(cts_msg.pw_size));
+      offset += sizeof(cts_msg.pw_size);
+
+      if (cts_msg.pw_size > PWDEFAULTSIZE) {
+        LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
+        cts_msg.pw_size = PWDEFAULTSIZE;
+      }
+      memcpy(&cts_msg.pw, msg + offset, cts_msg.pw_size);
+
+      if (cts_msg.session_id >= session_counter) {
+        LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring", cts_msg.session_id, session_counter);
+        send_status(WrongSessionId, client_sock);
+        return;
+      }
+
+      struct ConnectionStorage* storage = get_storage(map, cts_msg.session_id);
+      if (Created != storage->status) {
+        LOG_WARN("client is trying to connect to already closed or running session");
+        send_status(WrongSessionId, client_sock);
+        return;
+      }
+
+      if (storage->player1_sock == client_sock) {
+        LOG_WARN("Same sockets for 2 players.");
+        send_status(WrongSessionId, client_sock);
+        return;
+      }
+      // check password
+      if (storage->pw_size != cts_msg.pw_size) {
+        LOG_WARN("invalid password size. Expected: %d, received: %d", storage->pw_size, cts_msg.pw_size);
+        send_status(WrongPassword, client_sock);
+        return;
+      }
+      
+      if (0 > storage->pw_size) {
+        int res = memcmp(storage->pw, cts_msg.pw_size, storage->pw_size);
+        if (0 != res) {
+          LOG_WARN("Wrong passwords.");
+          send_status(WrongPassword, client_sock);
+          return;
+        }
+      }
+
+      storage->player2_sock = client_sock;
+      storage->status = Pending;
+      
+      send_status(Connected, client_sock);
+
+      char addr[INET_ADDRSTRLEN];
+      
+      //notifyUser(statusCode, player1_sock, player2_ipaddr)
     }
   }
 }
@@ -165,7 +311,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
 void run(char* ip, char* port, struct ConnectionMap* con_map) {
   static int session_counter = 0;
   int server_sock = setup_server(ip, port);
-  if (server_sock == -1) return;
+  if (-1 == server_sock) return;
 
   fd_set current_sockets;
   fd_set ready_sockets;
