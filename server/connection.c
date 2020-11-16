@@ -302,8 +302,8 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
       send_status(Connected, client_sock);
 
       char addr[INET_ADDRSTRLEN];
-      
-      //notifyUser(statusCode, player1_sock, player2_ipaddr)
+      get_ip_str(client_sock, addr);
+      notify_user(Connected, storage->player1_sock, addr);
     }
   }
 }
