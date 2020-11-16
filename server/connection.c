@@ -11,6 +11,8 @@
 
 #include "connection.h"
 #include "messages.h"
+#include "log.h"
+
 
 #define BUFFSIZE 512
 
@@ -109,14 +111,24 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
   } else {
 
     int msg_size = 0;
+    
+    if (readden < sizeof(int)) {
+      LOG_WARN("Invalid message received. readden: %d is less than sizeof int", readden);
+      return;
+    }
     memcpy(&msg_size, buf, sizeof(int));
 
+    if (readden < msg_size) {
+      LOG_WARN("Invalid message received. readden: %d is less then msg_size: %d", readden, msg_size);
+      return;
+    }
     char* msg = malloc(msg_size);
     memcpy(msg, buf, msg_size);
 
     enum MessageType msg_type = getMessageType(msg);
 
     if (CreateGameSession == msg_type) {
+      LOG_INFO("CreateGameSession received");
       // new connection, so we need to create new ConnectionStorage for it
       struct ConnectionStorage con_storage = {0}; 
       con_storage.status = Created;
@@ -184,7 +196,7 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
 
         // handle connection
         else {
-          handle_connection(i, &con_map);
+          handle_connection(i, con_map);
           FD_CLR(i, &current_sockets);
         }
       }
