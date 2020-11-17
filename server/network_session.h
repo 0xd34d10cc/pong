@@ -5,11 +5,20 @@
 
 #include <netinet/in.h>
 
+typedef struct Session Session;
+
 typedef struct NetworkSession {
   int socket;
-  char buf[BUFSIZE];
+
+  char input[BUFSIZE];
+  int received;
+
+  char output[BUFSIZE];
+  int sent;
+
   struct sockaddr_in sock_addr;
-  int offset;
+
+  Session* game;
 } NetworkSession;
 
 #endif // NETWORK_SESSION_H

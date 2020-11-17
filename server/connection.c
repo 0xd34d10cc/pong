@@ -196,6 +196,14 @@ static void send_session(int session_id, int client_sock) {
   LOG_INFO("SendSession message sent to user with id: %d", session_id);
 }
 
+// TODO:
+// protocol.h - message structs and forward declarations
+// protocol.c - serialization/deserialization
+// int deserialize_msg(struct Msg* msg, const char* buffer, size_t size)
+//  0 - success
+// -1  - fatal error
+//  1 - - not enough data
+
 static void deserialize_cts(struct ConnectToSessionMsg* msg, char* buf) {
   int offset = 4;
   memcpy(&msg->id, buf + offset, sizeof(msg->id));
@@ -291,7 +299,6 @@ static void handle_cts(struct ConnectToSessionMsg* msg, struct ConnectionMap* ma
 
 }
 
-// TODO: this function is too large, refactor
 static void handle_connection(int client_sock, struct ConnectionMap* map, int* session_counter) {
   char buf[BUFSIZE];
   ssize_t readden = recv(client_sock, buf, BUFSIZE, 0);
