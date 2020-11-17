@@ -12,12 +12,7 @@
 #include "connection.h"
 #include "messages.h"
 #include "log.h"
-
-
-#define BUFFSIZE 512
-
-// FIXME: don't use mutable global variables
-int static session_counter = 0;
+#include "network_session.h"
 
 // FIXME: we already have address from accept() call. There is no need for getpeername()
 static void get_ip_str(int sock, char* str) {
@@ -34,16 +29,13 @@ static int accept_connection(int server_socket) {
 
   int accepted_sock = (accept(server_socket, (struct sockaddr*) &client_addr, &addr_size));
   if (accepted_sock == -1) {
-    perror("Accept error");
+    LOG_ERROR("Accept error: %s", strerror(errno));
     return -1;
   }
 
   // TODO: set socket in non-blocking mode so that no IO operation could block the event loop
-  printf("accepted\n");
+  LOG_INFO("Connection accepted");
 
-  //  char addr_str[INET_ADDRSTRLEN];
-  //  inet_ntop(AF_INET, &client_addr, addr_str, INET_ADDRSTRLEN);
-  //  printf("accepted connection: %s /n", addr_str);
   return accepted_sock;
 }
 
@@ -55,24 +47,23 @@ static int setup_server(char* ip, char* port) {
   int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
   if (sock == -1) {
-    // FIXME: use LOG_ERROR() instead of perror()
-    perror("sock is not ready to be used");
+    LOG_ERROR("sock is not ready to be used: %s", strerror(errno));
     close(sock);
     return -1;
   }
 
-  // FIXME: use LOG_INFO() instead of printf()
-  printf("start binding\n");
+  LOG_INFO("start binding");
 
   if (bind(sock, (struct sockaddr*) &addr, sizeof addr) == -1) {
-    perror("can't bind to the address");
+    LOG_ERROR("can't bind to the address: %s", strerror(errno));
     close(sock);
     return -1;
   }
 
-  printf("start listening\n");
+  LOG_INFO("start listening");
   if (listen(sock, 20) == -1) {
-    perror("error is occured while initialization of listen()");
+    LOG_ERROR("Error is occured while initialization of listen(): %s", strerror(errno));
+    close(sock);
     return -1;
   }
   return sock;
@@ -84,7 +75,7 @@ static void send_status(enum ClientStatus status, int client_sock) {
   msg.status_code = status;
 
   // FIXME: use same connection-local buffer for any IO
-  char buf[BUFFSIZE];
+  char buf[BUFSIZE];
 
   //TODO serialize(char* buf, SendStatusMsg)
   int msg_size = 0;
@@ -109,7 +100,7 @@ static void send_status(enum ClientStatus status, int client_sock) {
   // TODO: check for incomplete send (i.e. sand_res < msg_size)
   int send_res = send(client_sock, buf, msg_size, 0);
   if (send_res == -1) {
-    perror("send failed");
+    LOG_ERROR("Send failed: %s", strerror(errno));
   }
 
   LOG_INFO("SendStatus message sent to user with status code: %d", msg.status_code);
@@ -121,7 +112,7 @@ static void notify_user(enum ClientStatus status, int client_sock, char* addr_st
   memcpy(msg.ipv4, addr_str, INET_ADDRSTRLEN);
   msg.id = NOTIFYUSERID;
 
-  char buf[BUFFSIZE];
+  char buf[BUFSIZE];
 
   //TODO: Serialize(char* buf, NotifyUserMsg)
   int msg_size = 0;
@@ -151,7 +142,7 @@ static void notify_user(enum ClientStatus status, int client_sock, char* addr_st
 
   int send_res = send(client_sock, buf, msg_size, 0);
   if (send_res == -1) {
-    perror("send failed");
+    LOG_ERROR("send failed: %s", strerror(errno));
   }
 
   LOG_INFO("NotifyUser message sent to user with status code: %d", msg.status_code);
@@ -163,7 +154,7 @@ static void send_session(int session_id, int client_sock) {
   msg.id = SENDSESSIONID;
   msg.session_id = session_id;
 
-  char buf[BUFFSIZE];
+  char buf[BUFSIZE];
 
   //TODO: serialize(char* buf, SendSessionMsg)
   int msg_size = 0;
@@ -187,7 +178,7 @@ static void send_session(int session_id, int client_sock) {
 
   int send_res = send(client_sock, buf, msg_size, 0);
   if (send_res == -1) {
-    perror("send failed");
+    LOG_ERROR("send failed: %s", strerror(errno));
   }
 
   LOG_INFO("SendSession message sent to user with id: %d", session_id);
@@ -195,15 +186,15 @@ static void send_session(int session_id, int client_sock) {
 
 
 // TOOD: this function is too large, refactor
-static void handle_connection(int client_sock, struct ConnectionMap* map) {
-  char buf[BUFFSIZE];
-  ssize_t readden = recv(client_sock, buf, BUFFSIZE, 0);
+static void handle_connection(int client_sock, struct ConnectionMap* map, int* session_counter) {
+  char buf[BUFSIZE];
+  ssize_t readden = recv(client_sock, buf, BUFSIZE, 0);
 
   if (readden == 0) {
-    printf("session was killed by user (P1)\n");
+    LOG_WARN("session was killed by user (P1)");
     return;
   } else if (readden < 0) {
-    perror("internal recv error (?)");
+    LOG_ERROR("internal recv error (?): %s", strerror(errno));
     return;
   } else {
     int msg_size = 0;
@@ -246,7 +237,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
 
       con_storage.pw_size = cgs_msg.pw_size;
       memcpy(con_storage.pw, cgs_msg.pw, cgs_msg.pw_size);
-      int session_id = session_counter++;
+      int session_id = *session_counter++;
 
       // TODO: use session pool instead of map
       insert(map, session_id, &con_storage);
@@ -275,8 +266,8 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
       }
       memcpy(&cts_msg.pw, buf + offset, cts_msg.pw_size);
 
-      if (cts_msg.session_id >= session_counter) {
-        LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring", cts_msg.session_id, session_counter);
+      if (cts_msg.session_id >= *session_counter) {
+        LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring", cts_msg.session_id, *session_counter);
         send_status(WrongSessionId, client_sock);
         return;
       }
@@ -325,7 +316,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
 }
 
 void run(char* ip, char* port, struct ConnectionMap* con_map) {
-  static int session_counter = 0;
+  int session_counter = 0;
   int server_sock = setup_server(ip, port);
   if (-1 == server_sock) return;
 
@@ -338,10 +329,10 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
   // TODO: handle ctrl-c
   while (1) {
     memcpy(&ready_sockets, &current_sockets, sizeof(current_sockets));
-    //ready_sockets = current_sockets;
+
     // just read for now
     if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0) {
-      perror("select error");
+      LOG_ERROR("select() error: %s", strerror(errno));
       return;
     }
 
@@ -359,7 +350,7 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
 
         // handle connection
         else {
-          handle_connection(i, con_map);
+          handle_connection(i, con_map, &session_counter);
           FD_CLR(i, &current_sockets);
         }
       }
