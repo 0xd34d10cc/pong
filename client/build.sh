@@ -7,5 +7,7 @@ clang -o pong scu.c \
       -fvisibility=hidden \
       -Werror=implicit-function-declaration \
       -Werror=implicit-int \
+      -Werror=int-conversion \
+      -Werror=return-type \
       -I../game \
       -lSDL2

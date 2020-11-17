@@ -7,4 +7,6 @@ clang -o server scu.c \
       -fvisibility=hidden \
       -Werror=implicit-function-declaration \
       -Werror=implicit-int \
+      -Werror=int-conversion \
+      -Werror=return-type \
       -I../game
