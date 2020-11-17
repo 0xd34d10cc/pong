@@ -30,20 +30,20 @@ enum ClientStatus {
   InvalidStatus = 3
 };
 
-struct ConnectionStorage {    
-  int player1_sock;    
-  int player2_sock;    
-  int pw_size;     
+struct ConnectionStorage {
+  int player1_sock;
+  int player2_sock;
+  int pw_size;
   char pw[PWDEFAULTSIZE];
   enum SessionStatus status;
-} ConnectionStorage;    
-    
-struct ConnectionMap {    
-  int id;    
-  struct ConnectionStorage connection_storage;    
-  struct ConnectionMap* left;    
-  struct ConnectionMap* right;    
-} ConnectionMap;    
+} ConnectionStorage;
+
+struct ConnectionMap {
+  int id;
+  struct ConnectionStorage connection_storage;
+  struct ConnectionMap* left;
+  struct ConnectionMap* right;
+} ConnectionMap;
 
 void insert(struct ConnectionMap* map, int id, struct ConnectionStorage* connect);
 

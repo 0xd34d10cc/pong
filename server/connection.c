@@ -29,7 +29,7 @@ int accept_connection(int server_socket) {
   int addr_size = sizeof(struct sockaddr_in);
   int client_socket;
   struct sockaddr_in client_addr;
-  
+
   int accepted_sock = (accept(server_socket, (struct sockaddr*) &client_addr, &addr_size));
   if (accepted_sock == -1) {
     perror("Accept error");
@@ -89,9 +89,9 @@ void send_status(enum ClientStatus status, int client_sock) {
 
   // serialization
   int offset = 0;
-  
+
   memcpy(buf + offset, &msg_size, sizeof(msg_size));
-  offset += sizeof(int); 
+  offset += sizeof(int);
 
   memcpy(buf + offset, &msg.id, sizeof(msg.id));
   offset += sizeof(msg.id);
@@ -111,7 +111,7 @@ void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
   msg.status_code = status;
   memcpy(msg.ipv4, addr_str, INET_ADDRSTRLEN);
   msg.id = NOTIFYUSERID;
-  
+
   char buf[BUFFSIZE];
 
   //TODO: Serialize(char* buf, NotifyUserMsg)
@@ -120,7 +120,7 @@ void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
   msg_size += sizeof(msg.id);
   msg_size += sizeof(msg.status_code);
   msg_size += sizeof(msg.ipv4); // INET_ADDRSTRLEN
-  
+
   // 4 bytes for msg size
   msg_size += sizeof(int);
 
@@ -150,7 +150,7 @@ void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
 
 void send_session(int session_id, int client_sock) {
   struct SendSessionMsg msg = {0};
-  msg.id = SENDSESSIONID; 
+  msg.id = SENDSESSIONID;
   msg.session_id = session_id;
 
   char buf[BUFFSIZE];
@@ -160,10 +160,10 @@ void send_session(int session_id, int client_sock) {
 
   msg_size += sizeof(msg.id);
   msg_size += sizeof(msg.session_id);
-  
+
   // 4 bytes for msg size
   msg_size += sizeof(int);
-  
+
 
   // serialization
   int offset = 0;
@@ -172,9 +172,9 @@ void send_session(int session_id, int client_sock) {
   memcpy(buf + offset, &msg.id, sizeof(short));
   offset += sizeof(short);
   memcpy(buf+ offset, &msg.session_id, sizeof(int));
-  
+
   // send to client
-  
+
   int send_res = send(client_sock, buf, msg_size, 0);
   if (send_res == -1) {
     perror("send failed");
@@ -197,7 +197,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
   } else {
 
     int msg_size = 0;
-    
+
     if (readden < sizeof(int)) {
       LOG_WARN("Invalid message received. readden: %d is less than sizeof int", readden);
       return;
@@ -216,7 +216,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
     if (CreateGameSession == msg_type) {
       LOG_INFO("CreateGameSession received");
       // new connection, so we need to create new ConnectionStorage for it
-      struct ConnectionStorage con_storage = {0}; 
+      struct ConnectionStorage con_storage = {0};
       con_storage.status = Created;
       struct CreateGameSessionMsg cgs_msg = {0};
       // each message contains 4 bytes of it's size
@@ -224,14 +224,14 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
 
       con_storage.player1_sock = client_sock;
       memcpy(&cgs_msg.pw_size, msg + offset, sizeof(int));
-      
+
       offset += sizeof(int);
 
       if (cgs_msg.pw_size > PWDEFAULTSIZE) {
         LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
         cgs_msg.pw_size = PWDEFAULTSIZE;
       }
-      
+
       memcpy(&cgs_msg.pw, msg + offset, cgs_msg.pw_size);
 
       con_storage.pw_size = cgs_msg.pw_size;
@@ -286,7 +286,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
         send_status(WrongPassword, client_sock);
         return;
       }
-      
+
       if (0 > storage->pw_size) {
         int res = memcmp(storage->pw, cts_msg.pw_size, storage->pw_size);
         if (0 != res) {
@@ -298,7 +298,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
 
       storage->player2_sock = client_sock;
       storage->status = Pending;
-      
+
       send_status(Connected, client_sock);
 
       char addr[INET_ADDRSTRLEN];
@@ -320,7 +320,7 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
   FD_SET(server_sock, &current_sockets);
 
   while (1) {
-    memcpy(&ready_sockets, &current_sockets, sizeof(current_sockets)); 
+    memcpy(&ready_sockets, &current_sockets, sizeof(current_sockets));
     //ready_sockets = current_sockets;
     // just read for now
     if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0) {
@@ -330,15 +330,15 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
 
     for (int i = 0; i < FD_SETSIZE; i++) {
       if (FD_ISSET(i, &ready_sockets)) {
-        
+
         // new connection
         if(i == server_sock) {
-          
+
           int client_sock = accept_connection(i);
           if (client_sock == -1) return;
-          
+
           FD_SET(client_sock, &current_sockets);
-        } 
+        }
 
         // handle connection
         else {
