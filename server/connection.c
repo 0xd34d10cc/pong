@@ -16,16 +16,18 @@
 
 #define BUFFSIZE 512
 
+// FIXME: don't use mutable global variables
 int static session_counter = 0;
 
-void get_ip_str(int sock, char* str) {
+// FIXME: we already have address from accept() call. There is no need for getpeername()
+static void get_ip_str(int sock, char* str) {
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof(struct sockaddr_in);
   int res = getpeername(sock, (struct sockaddr *)&addr, &addr_size);
   strcpy(str, inet_ntoa(addr.sin_addr));
 }
 
-int accept_connection(int server_socket) {
+static int accept_connection(int server_socket) {
   int addr_size = sizeof(struct sockaddr_in);
   int client_socket;
   struct sockaddr_in client_addr;
@@ -35,14 +37,17 @@ int accept_connection(int server_socket) {
     perror("Accept error");
     return -1;
   }
+
+  // TODO: set socket in non-blocking mode so that no IO operation could block the event loop
   printf("accepted\n");
-//  char addr_str[INET_ADDRSTRLEN];
-//  inet_ntop(AF_INET, &client_addr, addr_str, INET_ADDRSTRLEN);
-//  printf("accepted connection: %s /n", addr_str);
+
+  //  char addr_str[INET_ADDRSTRLEN];
+  //  inet_ntop(AF_INET, &client_addr, addr_str, INET_ADDRSTRLEN);
+  //  printf("accepted connection: %s /n", addr_str);
   return accepted_sock;
 }
 
-int setup_server(char* ip, char* port) {
+static int setup_server(char* ip, char* port) {
   struct sockaddr_in addr = {0};
   addr.sin_family = AF_INET;
   addr.sin_port = htons(atoi(port));
@@ -50,11 +55,13 @@ int setup_server(char* ip, char* port) {
   int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
   if (sock == -1) {
+    // FIXME: use LOG_ERROR() instead of perror()
     perror("sock is not ready to be used");
     close(sock);
     return -1;
   }
 
+  // FIXME: use LOG_INFO() instead of printf()
   printf("start binding\n");
 
   if (bind(sock, (struct sockaddr*) &addr, sizeof addr) == -1) {
@@ -71,11 +78,12 @@ int setup_server(char* ip, char* port) {
   return sock;
 }
 
-void send_status(enum ClientStatus status, int client_sock) {
+static void send_status(enum ClientStatus status, int client_sock) {
   struct SendStatusMsg msg = {0};
   msg.id = SENDSTATUSID;
   msg.status_code = status;
 
+  // FIXME: use same connection-local buffer for any IO
   char buf[BUFFSIZE];
 
   //TODO serialize(char* buf, SendStatusMsg)
@@ -98,6 +106,7 @@ void send_status(enum ClientStatus status, int client_sock) {
 
   memcpy(buf + offset, &msg.status_code, sizeof(msg.status_code));
 
+  // TODO: check for incomplete send (i.e. sand_res < msg_size)
   int send_res = send(client_sock, buf, msg_size, 0);
   if (send_res == -1) {
     perror("send failed");
@@ -106,7 +115,7 @@ void send_status(enum ClientStatus status, int client_sock) {
   LOG_INFO("SendStatus message sent to user with status code: %d", msg.status_code);
 }
 
-void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
+static void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
   struct NotifyUserMsg msg = {0};
   msg.status_code = status;
   memcpy(msg.ipv4, addr_str, INET_ADDRSTRLEN);
@@ -148,8 +157,9 @@ void notify_user(enum ClientStatus status, int client_sock, char* addr_str) {
   LOG_INFO("NotifyUser message sent to user with status code: %d", msg.status_code);
 }
 
-void send_session(int session_id, int client_sock) {
+static void send_session(int session_id, int client_sock) {
   struct SendSessionMsg msg = {0};
+  // TODO: use same message id enum for serialization and server logic code
   msg.id = SENDSESSIONID;
   msg.session_id = session_id;
 
@@ -184,7 +194,8 @@ void send_session(int session_id, int client_sock) {
 }
 
 
-void handle_connection(int client_sock, struct ConnectionMap* map) {
+// TOOD: this function is too large, refactor
+static void handle_connection(int client_sock, struct ConnectionMap* map) {
   char buf[BUFFSIZE];
   ssize_t readden = recv(client_sock, buf, BUFFSIZE, 0);
 
@@ -195,9 +206,10 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
     perror("internal recv error (?)");
     return;
   } else {
-
     int msg_size = 0;
 
+    // FIXME: this is valid case and we should not just throw off the buffer after that happens
+    //        instead, we should just wait for client to send more data
     if (readden < sizeof(int)) {
       LOG_WARN("Invalid message received. readden: %d is less than sizeof int", readden);
       return;
@@ -208,6 +220,9 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
       LOG_WARN("Invalid message received. readden: %d is less then msg_size: %d", readden, msg_size);
       return;
     }
+
+    // FIXME: free() this buffer in case of any error below
+    //        .. or don't use malloc() here at all
     char* msg = malloc(msg_size);
     memcpy(msg, buf, msg_size);
 
@@ -238,10 +253,13 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
       memcpy(con_storage.pw, cgs_msg.pw, cgs_msg.pw_size);
       int session_id = session_counter++;
 
+      // TODO: use session pool instead of map
       insert(map, session_id, &con_storage);
       send_session(session_id, client_sock);
     }
 
+    // NOTE: there is no need for yoda style in 2020. Any modern compiler will
+    //       show a warning if you wrtite if (a = b) { ... }
     if (ConnectToSession == msg_type) {
       LOG_INFO("ConnectToSession message received");
 
@@ -269,6 +287,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
       }
 
       struct ConnectionStorage* storage = get_storage(map, cts_msg.session_id);
+      // FIXME: check for NULL
       if (Created != storage->status) {
         LOG_WARN("client is trying to connect to already closed or running session");
         send_status(WrongSessionId, client_sock);
@@ -280,6 +299,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
         send_status(WrongSessionId, client_sock);
         return;
       }
+
       // check password
       if (storage->pw_size != cts_msg.pw_size) {
         LOG_WARN("invalid password size. Expected: %d, received: %d", storage->pw_size, cts_msg.pw_size);
@@ -287,6 +307,7 @@ void handle_connection(int client_sock, struct ConnectionMap* map) {
         return;
       }
 
+      // FIXME: pw_size < 0 just skips password check
       if (0 > storage->pw_size) {
         int res = memcmp(storage->pw, cts_msg.pw_size, storage->pw_size);
         if (0 != res) {
@@ -319,6 +340,7 @@ void run(char* ip, char* port, struct ConnectionMap* con_map) {
   FD_ZERO(&current_sockets);
   FD_SET(server_sock, &current_sockets);
 
+  // TODO: handle ctrl-c
   while (1) {
     memcpy(&ready_sockets, &current_sockets, sizeof(current_sockets));
     //ready_sockets = current_sockets;
