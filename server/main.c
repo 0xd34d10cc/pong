@@ -18,8 +18,9 @@ int main(int argc, char* argv[]) {
   }
 
   printf("starting with %s : %s\n", argv[1], argv[2]);
-  struct ConnectionMap con_map = {0};
-  run(argv[1], argv[2],  &con_map);
+  struct ConnectionMap* con_map = malloc(sizeof(struct ConnectionMap));
+  run(argv[1], argv[2],  con_map);
 
+  map_destroy(con_map);
   return 0;
 }

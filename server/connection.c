@@ -28,7 +28,7 @@ static void get_ip_str(int sock, char* str) {
 }
 
 static int accept_connection(int server_socket) {
-  int addr_size = sizeof(struct sockaddr_in);
+  socklen_t addr_size = sizeof(struct sockaddr_in);
   int client_socket;
   struct sockaddr_in client_addr;
 
@@ -221,12 +221,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
       return;
     }
 
-    // FIXME: free() this buffer in case of any error below
-    //        .. or don't use malloc() here at all
-    char* msg = malloc(msg_size);
-    memcpy(msg, buf, msg_size);
-
-    enum MessageType msg_type = getMessageType(msg);
+    enum MessageType msg_type = getMessageType(buf);
 
     if (CreateGameSession == msg_type) {
       LOG_INFO("CreateGameSession received");
@@ -238,7 +233,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
       int offset = 4;
 
       con_storage.player1_sock = client_sock;
-      memcpy(&cgs_msg.pw_size, msg + offset, sizeof(int));
+      memcpy(&cgs_msg.pw_size, buf + offset, sizeof(int));
 
       offset += sizeof(int);
 
@@ -247,7 +242,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
         cgs_msg.pw_size = PWDEFAULTSIZE;
       }
 
-      memcpy(&cgs_msg.pw, msg + offset, cgs_msg.pw_size);
+      memcpy(&cgs_msg.pw, buf + offset, cgs_msg.pw_size);
 
       con_storage.pw_size = cgs_msg.pw_size;
       memcpy(con_storage.pw, cgs_msg.pw, cgs_msg.pw_size);
@@ -265,20 +260,20 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
 
       int offset = 4;
       struct ConnectToSessionMsg cts_msg = {0};
-      memcpy(&cts_msg.id, msg + offset, sizeof(cts_msg.id));
+      memcpy(&cts_msg.id, buf + offset, sizeof(cts_msg.id));
       offset += sizeof(cts_msg.id);
 
-      memcpy(&cts_msg.session_id, msg + offset, sizeof(cts_msg.session_id));
+      memcpy(&cts_msg.session_id, buf + offset, sizeof(cts_msg.session_id));
       offset += sizeof(cts_msg.session_id);
 
-      memcpy(&cts_msg.pw_size, msg + offset, sizeof(cts_msg.pw_size));
+      memcpy(&cts_msg.pw_size, buf + offset, sizeof(cts_msg.pw_size));
       offset += sizeof(cts_msg.pw_size);
 
       if (cts_msg.pw_size > PWDEFAULTSIZE) {
         LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
         cts_msg.pw_size = PWDEFAULTSIZE;
       }
-      memcpy(&cts_msg.pw, msg + offset, cts_msg.pw_size);
+      memcpy(&cts_msg.pw, buf + offset, cts_msg.pw_size);
 
       if (cts_msg.session_id >= session_counter) {
         LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring", cts_msg.session_id, session_counter);
@@ -309,7 +304,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map) {
 
       // FIXME: pw_size < 0 just skips password check
       if (0 > storage->pw_size) {
-        int res = memcmp(storage->pw, cts_msg.pw_size, storage->pw_size);
+        int res = memcmp(storage->pw, cts_msg.pw, storage->pw_size);
         if (0 != res) {
           LOG_WARN("Wrong passwords.");
           send_status(WrongPassword, client_sock);

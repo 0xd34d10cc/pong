@@ -49,4 +49,13 @@ struct ConnectionStorage* get_storage(struct ConnectionMap* map, int id) {
       return NULL;
     }
   }
+
+  return NULL;
+}
+
+void map_destroy(struct ConnectionMap* map) {
+  if (NULL == map) return;
+  if (map->left) map_destroy(map->left);
+  if (map->right) map_destroy(map->right);
+  free(map);
 }
