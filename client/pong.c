@@ -13,7 +13,7 @@ int pong_init(Pong* pong) {
       SDL_WINDOWPOS_UNDEFINED,
       DEFAULT_WINDOW_WIDTH,
       DEFAULT_WINDOW_HEIGHT,
-      0 // todo: flags
+      SDL_WINDOW_SHOWN
   );
 
   if (!pong->window) {
@@ -86,7 +86,7 @@ void pong_run(Pong* pong) {
     renderer_render(&pong->renderer, &pong->game);
 
     // wait for next frame
-    // todo: proper game loop time management
+    // TODO: proper game loop time management
     SDL_Delay(16);
   }
 }

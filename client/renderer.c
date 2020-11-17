@@ -6,13 +6,14 @@
 
 
 int renderer_init(Renderer* renderer, SDL_Window* window) {
-  renderer->backend = SDL_CreateRenderer(window, -1 /* any gpu */, 0 /* todo: flags */);
+  int flags = SDL_RENDERER_ACCELERATED;
+  renderer->backend = SDL_CreateRenderer(window, -1 /* any gpu */, flags);
   if (!renderer->backend) {
     LOG_ERROR("Failed to create renderer: %s", SDL_GetError());
     return -1;
   }
 
-  // todo: embed the image into binary
+  // TODO: embed the image into binary
   renderer->lost_image = SDL_LoadBMP("resources/lose.bmp");
   if (!renderer->lost_image) {
     LOG_ERROR("Failed to load loser image: %s", SDL_GetError());
