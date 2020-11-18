@@ -196,6 +196,101 @@ static void send_session(int session_id, int client_sock) {
   LOG_INFO("SendSession message sent to user with id: %d", session_id);
 }
 
+static void deserialize_cts(struct ConnectToSessionMsg* msg, char* buf) {
+  int offset = 4;
+  memcpy(&msg->id, buf + offset, sizeof(msg->id));
+  offset += sizeof(msg->id);
+
+  memcpy(&msg->session_id, buf + offset, sizeof(msg->session_id));
+  offset += sizeof(msg->session_id);
+
+  memcpy(&msg->pw_size, buf + offset, sizeof(msg->pw_size));
+  offset += sizeof(msg->pw_size);
+
+  if (msg->pw_size > PWDEFAULTSIZE) {
+    LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
+    msg->pw_size = PWDEFAULTSIZE;
+  }
+  memcpy(&msg->pw, buf + offset, msg->pw_size);
+}
+
+static void deserialize_cgs(struct CreateGameSessionMsg* msg, char* buf) {
+  int offset = 4;
+  memcpy(&msg->pw_size, buf + offset, sizeof(int));
+
+  offset += sizeof(int);
+
+  if (msg->pw_size > PWDEFAULTSIZE) {
+    LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
+    msg->pw_size = PWDEFAULTSIZE;
+  }
+
+  memcpy(msg->pw, buf + offset, msg->pw_size);
+}
+
+static void handle_cgs(struct CreateGameSessionMsg* msg, struct ConnectionMap* map,
+                       int session_id, int client_sock) {
+  struct ConnectionStorage con_storage = {0};
+  con_storage.status = Created;
+
+  con_storage.player1_sock = client_sock;
+  con_storage.pw_size = msg->pw_size;
+  memcpy(con_storage.pw, msg->pw, msg->pw_size);
+
+  // TODO: use session pool instead of map
+  insert(map, session_id, &con_storage);
+  send_session(session_id, client_sock);
+}
+
+static void handle_cts(struct ConnectToSessionMsg* msg, struct ConnectionMap* map,
+                       int max_session_id, int client_sock) {
+  if (msg->session_id >= max_session_id) {
+    LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring",
+                                   msg->session_id, max_session_id);
+    send_status(WrongSessionId, client_sock);
+    return;
+  }
+
+  struct ConnectionStorage* storage = get_storage(map, msg->session_id);
+  if (storage == NULL || Created != storage->status) {
+    LOG_WARN("client is trying to connect to already closed or running session");
+    send_status(WrongSessionId, client_sock);
+    return;
+  }
+
+  if (storage->player1_sock == client_sock) {
+    LOG_WARN("Same sockets for 2 players.");
+    send_status(WrongSessionId, client_sock);
+    return;
+  }
+
+  // check password
+  if (storage->pw_size != msg->pw_size) {
+    LOG_WARN("invalid password size. Expected: %d, received: %d", storage->pw_size, msg->pw_size);
+    send_status(WrongPassword, client_sock);
+    return;
+  }
+
+  if (0 > storage->pw_size) {
+    int res = memcmp(storage->pw, msg->pw, storage->pw_size);
+    if (0 != res) {
+      LOG_WARN("Wrong passwords.");
+      send_status(WrongPassword, client_sock);
+      return;
+    }
+  }
+
+  storage->player2_sock = client_sock;
+  storage->status = Pending;
+
+  send_status(Connected, client_sock);
+
+  char addr[INET_ADDRSTRLEN];
+  get_ip_str(client_sock, addr);
+  notify_user(Connected, storage->player1_sock, addr);
+
+}
+
 // TODO: this function is too large, refactor
 static void handle_connection(int client_sock, struct ConnectionMap* map, int* session_counter) {
   char buf[BUFSIZE];
@@ -228,31 +323,10 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
     if (CREATE_GAME_SESSION == msg_type) {
       LOG_INFO("CreateGameSession received");
       // new connection, so we need to create new ConnectionStorage for it
-      struct ConnectionStorage con_storage = {0};
-      con_storage.status = Created;
       struct CreateGameSessionMsg cgs_msg = {0};
-      // each message contains 4 bytes of it's size
-      int offset = 4;
+      deserialize_cgs(&cgs_msg, buf);
 
-      con_storage.player1_sock = client_sock;
-      memcpy(&cgs_msg.pw_size, buf + offset, sizeof(int));
-
-      offset += sizeof(int);
-
-      if (cgs_msg.pw_size > PWDEFAULTSIZE) {
-        LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
-        cgs_msg.pw_size = PWDEFAULTSIZE;
-      }
-
-      memcpy(&cgs_msg.pw, buf + offset, cgs_msg.pw_size);
-
-      con_storage.pw_size = cgs_msg.pw_size;
-      memcpy(con_storage.pw, cgs_msg.pw, cgs_msg.pw_size);
-      int session_id = *session_counter++;
-
-      // TODO: use session pool instead of map
-      insert(map, session_id, &con_storage);
-      send_session(session_id, client_sock);
+      handle_cgs(&cgs_msg, map, *session_counter++, client_sock);
     }
 
     // NOTE: there is no need for yoda style in 2020. Any modern compiler will
@@ -260,66 +334,10 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
     if (CONNECT_TO_SESSION == msg_type) {
       LOG_INFO("ConnectToSession message received");
 
-      int offset = 4;
       struct ConnectToSessionMsg cts_msg = {0};
-      memcpy(&cts_msg.id, buf + offset, sizeof(cts_msg.id));
-      offset += sizeof(cts_msg.id);
+      deserialize_cts(&cts_msg, buf);
 
-      memcpy(&cts_msg.session_id, buf + offset, sizeof(cts_msg.session_id));
-      offset += sizeof(cts_msg.session_id);
-
-      memcpy(&cts_msg.pw_size, buf + offset, sizeof(cts_msg.pw_size));
-      offset += sizeof(cts_msg.pw_size);
-
-      if (cts_msg.pw_size > PWDEFAULTSIZE) {
-        LOG_INFO("password is shrinked to %d characters", PWDEFAULTSIZE);
-        cts_msg.pw_size = PWDEFAULTSIZE;
-      }
-      memcpy(&cts_msg.pw, buf + offset, cts_msg.pw_size);
-
-      if (cts_msg.session_id >= *session_counter) {
-        LOG_WARN("received session id: %d is bigger than current session id: %d, ignoring", cts_msg.session_id, *session_counter);
-        send_status(WrongSessionId, client_sock);
-        return;
-      }
-
-      struct ConnectionStorage* storage = get_storage(map, cts_msg.session_id);
-      if (storage == NULL || Created != storage->status) {
-        LOG_WARN("client is trying to connect to already closed or running session");
-        send_status(WrongSessionId, client_sock);
-        return;
-      }
-
-      if (storage->player1_sock == client_sock) {
-        LOG_WARN("Same sockets for 2 players.");
-        send_status(WrongSessionId, client_sock);
-        return;
-      }
-
-      // check password
-      if (storage->pw_size != cts_msg.pw_size) {
-        LOG_WARN("invalid password size. Expected: %d, received: %d", storage->pw_size, cts_msg.pw_size);
-        send_status(WrongPassword, client_sock);
-        return;
-      }
-
-      if (0 > storage->pw_size) {
-        int res = memcmp(storage->pw, cts_msg.pw, storage->pw_size);
-        if (0 != res) {
-          LOG_WARN("Wrong passwords.");
-          send_status(WrongPassword, client_sock);
-          return;
-        }
-      }
-
-      storage->player2_sock = client_sock;
-      storage->status = Pending;
-
-      send_status(Connected, client_sock);
-
-      char addr[INET_ADDRSTRLEN];
-      get_ip_str(client_sock, addr);
-      notify_user(Connected, storage->player1_sock, addr);
+      handle_cts(&cts_msg, map, *session_counter, client_sock);
     }
   }
 }
