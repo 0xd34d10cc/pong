@@ -11,6 +11,7 @@ typedef struct Server {
 
 int server_init(Server* server, const char* host, unsigned short port);
 int server_run(Server* server);
+void server_close(Server* server);
 
 
 #endif // SERVER_H

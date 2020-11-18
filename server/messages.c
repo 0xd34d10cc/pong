@@ -1,6 +1,8 @@
 #include "messages.h"
 
+#include <stdlib.h>
 #include <string.h>
+
 #include "log.h"
 
 #define NOT_ENOUGH_DATA 0
@@ -155,11 +157,11 @@ int parse_server_message(struct ServerMsg* msg, const char* buffer, size_t size)
   int n = 0;
   switch (msg_id) {
     case SEND_SESSION: {
-      n = parse_create_session(&msg->send_session, buffer + offset, msg_size - offset);
+      n = parse_send_session(&msg->send_session, buffer + offset, msg_size - offset);
       break;
     }
     case SEND_STATUS: {
-      n = parse_connect_to_session(&msg->send_status, buffer + offset,  msg_size - offset);
+      n = parse_send_status(&msg->send_status, buffer + offset,  msg_size - offset);
       break;
     }
     case NOTIFY_USER: {

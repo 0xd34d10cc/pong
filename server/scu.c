@@ -1,6 +1,6 @@
 #include "log.c"
-#include "connection_utils.c"
 #include "pool.c"
 #include "messages.c"
-#include "connection.c"
+#include "network_session.c"
+#include "server.c"
 #include "main.c"

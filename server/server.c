@@ -3,9 +3,13 @@
 #include <errno.h>
 
 #include <sys/epoll.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include <fcntl.h>
 
+#include "network_session.h"
+#include "session.h"
 
 // TODO: use accept4
 static void set_nonblocking(int socket) {
@@ -33,7 +37,7 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   }
 
   set_nonblocking(master);
-  // TODO  setsockopt(master, SO_REUSEPORT)
+  // TODO  setsockopt(master, SO_REUSEADDR)
   if (bind(master, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
     LOG_ERROR("Failed to bind to the address: %s", strerror(errno));
     close(master);
@@ -47,11 +51,12 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   }
 
   // NOTE: since Linux 2.6.8 size argument is ignored
+  // TODO: set EPOLLET
   int poll = epoll_create(1);
   if (poll == -1) {
     LOG_ERROR("Failed to create epoll instance: %s", strerror(errno));
     close(master);
-    return;
+    return -1;
   }
 
   server->poll = poll;
@@ -62,11 +67,19 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   return 0;
 }
 
+void server_close(Server* server) {
+  close(server->master_socket);
+
+  // TODO: close each active network session
+
+  close(server->poll);
+}
+
 static int server_accept(Server* server) {
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof(addr);
   while (true) {
-    int socket = accept(server->master, (struct sockaddr*)&addr, &addr_size);
+    int socket = accept(server->master_socket, (struct sockaddr*)&addr, &addr_size);
     if (socket == -1) {
       if (errno == EWOULDBLOCK) {
         break;
@@ -88,12 +101,14 @@ static int server_accept(Server* server) {
     network_session_init(session, socket, &addr);
 
     struct epoll_event event;
-    event.events = EPOLLIN | EPOLLOUT;
+    event.events = EPOLLIN;
     event.data.ptr = session;
-    if (epoll_ctl(server->poll, EPOLL_CTL_ADD, &socket, &event) == -1) {
+    if (epoll_ctl(server->poll, EPOLL_CTL_ADD, socket, &event) == -1) {
       LOG_ERROR("Failed to add client socket to epoll: %s", strerror(errno));
       return -1;
     }
+
+    LOG_INFO("Client %d successfully connected", socket);
   }
 
   return 0;
@@ -107,8 +122,8 @@ static int server_read(Server* server, NetworkSession* session) {
       return -1;
     }
 
-    int read = recv(session->socket, session->input, n);
-    if (read == -1) {
+    // TODO: flags
+    int read = recv(session->socket, session->input, n, 0); if (read == -1) {
       if (errno == EWOULDBLOCK) {
         break;
       }
@@ -130,7 +145,15 @@ static int server_read(Server* server, NetworkSession* session) {
     }
 
     // process game logic
+    // TODO
   }
+
+  return 0;
+}
+
+static int server_write(Server* server, NetworkSession* session) {
+  // TODO
+  return 0;
 }
 
 static int server_event(Server* server, NetworkSession* session, unsigned int event) {
@@ -154,7 +177,7 @@ static void server_disconnect(Server* server, NetworkSession* session) {
   if (epoll_ctl(server->poll, EPOLL_CTL_DEL, session->socket, NULL) == -1) {
     LOG_ERROR("Failed to remove socket from epoll: %s", strerror(errno));
   }
-  close(session->socket);
+  network_session_close(session);
   pool_release(&server->connections, session);
 }
 
@@ -177,7 +200,7 @@ int server_run(Server* server) {
       return -1;
     }
 
-    for (int i = 0; i < n_events,  ++i) {
+    for (int i = 0; i < n_events;  ++i) {
       NetworkSession* session = events[i].data.ptr;
       if (session == NULL) {
         if (server_accept(server) < 0) {
@@ -185,8 +208,8 @@ int server_run(Server* server) {
         }
       }
       else {
-        if (server_event(server, session, event[i].events) < 0) {
-          server_disconnect(session);
+        if (server_event(server, session, events[i].events) < 0) {
+          server_disconnect(server, session);
         }
       }
     }
