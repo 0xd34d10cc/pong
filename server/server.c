@@ -37,7 +37,11 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   }
 
   set_nonblocking(master);
-  // TODO  setsockopt(master, SO_REUSEADDR)
+  int flag = 1;
+  if (setsockopt(master, SOL_SOCKET, SO_REUSEADDR, (const void*)&flag, sizeof(int)) == -1) {
+    LOG_WARN("Failed to set SO_RESUEADDR socket option: %s", strerror(errno));
+  }
+
   if (bind(master, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
     LOG_ERROR("Failed to bind to the address: %s", strerror(errno));
     close(master);
@@ -114,6 +118,15 @@ static int server_accept(Server* server) {
   return 0;
 }
 
+static void server_create_game_session(Server* server, NetworkSession* owner, CreateGameSessionMsg* message) {
+  LOG_INFO("Creating session with password %s", message->pw);
+  // TODO
+}
+
+static void server_connect_to_session(Server* server, NetworkSession* guest, ConnectToSessionMsg* message) {
+  // TODO
+}
+
 static int server_read(Server* server, NetworkSession* session) {
   while (true) {
     int n = sizeof(session->input) - session->received;
@@ -123,7 +136,8 @@ static int server_read(Server* server, NetworkSession* session) {
     }
 
     // TODO: flags
-    int read = recv(session->socket, session->input, n, 0); if (read == -1) {
+    int read = recv(session->socket, session->input, n, 0);
+    if (read == -1) {
       if (errno == EWOULDBLOCK) {
         break;
       }
@@ -140,7 +154,29 @@ static int server_read(Server* server, NetworkSession* session) {
     session->received += read;
     if (session->game == NULL) {
       // attempt to parse CreateSession or JoinSession message
-      // TODO
+      ClientMsg message;
+      int n = parse_client_message(&message, &session->input[0], session->received);
+      if (n < 0) {
+        return n;
+      }
+
+      if (n > 0) {
+        // TODO: use ring buffer
+        memmove(session->input, session->input + n, session->received - n);
+
+        switch (message.id) {
+          case CREATE_GAME_SESSION:
+            server_create_game_session(server, session, &message.create_game_session);
+            break;
+          case CONNECT_TO_SESSION:
+            server_connect_to_session(server, session, &message.connect_to_session);
+            break;
+          default:
+            LOG_WARN("Unexpected message type received: %d", message.id);
+            return -1;
+        }
+      }
+
       continue;
     }
 

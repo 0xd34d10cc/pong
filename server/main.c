@@ -24,7 +24,9 @@ int main(int argc, char* argv[]) {
 
   LOG_INFO("Starting at %s:%d", host, port);
   Server server;
-  server_init(&server, host, port);
+  if (server_init(&server, host, port) < 0) {
+    return EXIT_FAILURE;
+  }
   server_run(&server);
   server_close(&server);
 

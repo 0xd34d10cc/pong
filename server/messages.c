@@ -14,12 +14,12 @@ static int parse_create_session(struct CreateGameSessionMsg* msg, const char* bu
   if (msg->pw_size != msg_size - sizeof(int)) {
     return PARSE_ERROR;
   }
-  int offset = sizeof(int);
 
   if (msg->pw_size > PWDEFAULTSIZE) {
     return PARSE_ERROR;
   }
 
+  int offset = sizeof(int);
   memcpy(msg->pw, buffer + offset, msg->pw_size);
   return msg_size;
 }
@@ -98,7 +98,7 @@ int parse_client_message(struct ClientMsg* msg, const char* buffer, size_t size)
     return PARSE_ERROR;
   }
 
-  if(size < msg_size) {
+  if (size < msg_size) {
     return NOT_ENOUGH_DATA;
   }
 
@@ -127,6 +127,7 @@ int parse_client_message(struct ClientMsg* msg, const char* buffer, size_t size)
     return n;
   }
 
+  msg->id = msg_id;
   return msg_size;
 }
 
@@ -178,6 +179,7 @@ int parse_server_message(struct ServerMsg* msg, const char* buffer, size_t size)
     return n;
   }
 
+  msg->id = msg_id;
   return msg_size;
 }
 

@@ -41,6 +41,7 @@ typedef struct SendSessionMsg {
   int session_id;
 } SendSessionMsg;
 
+// TODO: rename to JoinSessionMsg
 typedef struct ConnectToSessionMsg {
   int session_id;
   int pw_size;
