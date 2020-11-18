@@ -26,7 +26,7 @@ void game_log(LogLevel log_level, const char* format, ...) {
       level = "WARN";
       break;
     case LOG_LEVEL_ERROR:
-      level = "ERROR";
+      level = "ERR ";
       break;
   }
 
