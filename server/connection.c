@@ -200,9 +200,9 @@ static void send_session(int session_id, int client_sock) {
 // protocol.h - message structs and forward declarations
 // protocol.c - serialization/deserialization
 // int deserialize_msg(struct Msg* msg, const char* buffer, size_t size)
-//  0 - success
-// -1  - fatal error
-//  1 - - not enough data
+//  0 -- not enough data
+// -1 -- fatal error
+//  N -- sucksex N read
 
 static void deserialize_cts(struct ConnectToSessionMsg* msg, char* buf) {
   int offset = 4;

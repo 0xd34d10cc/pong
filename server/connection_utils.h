@@ -17,19 +17,6 @@ typedef enum SessionStatus {
   Invalid = 4
 } SessionStatus;
 
-// Status that we provide to end users about connection success or failure
-typedef enum ClientStatus {
-  // Successfully connected to the game session
-  Connected = 0,
-  // Provided Wrong session ID
-  WrongSessionId = 1,
-  // Provided Wrong password for existing session
-  WrongPassword = 2,
-
-  // Invalid status means that something went wrong
-  InvalidStatus = 3
-} ClientStatus;
-
 typedef struct ConnectionStorage {
   int player1_sock;
   int player2_sock;
