@@ -7,6 +7,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 
 #include "connection.h"
@@ -22,6 +23,18 @@ static void get_ip_str(int sock, char* str) {
   strcpy(str, inet_ntoa(addr.sin_addr));
 }
 
+static void set_nonblock_flag(int sock) {
+  int flags = fcntl(sock, F_GETFL, 0);
+  if (flags == -1) {
+    LOG_ERROR("Can't get flags from socket");
+    return;
+  }
+  flags |= O_NONBLOCK;
+  if (fcntl(sock, F_SETFL, flags) != 0) {
+    LOG_ERROR("Can't set flags for socket");
+  }
+}
+
 static int accept_connection(int server_socket) {
   socklen_t addr_size = sizeof(struct sockaddr_in);
   int client_socket;
@@ -33,7 +46,7 @@ static int accept_connection(int server_socket) {
     return -1;
   }
 
-  // TODO: set socket in non-blocking mode so that no IO operation could block the event loop
+  set_nonblock_flag(accepted_sock);
   LOG_INFO("Connection accepted");
 
   return accepted_sock;
@@ -45,13 +58,13 @@ static int setup_server(char* ip, char* port) {
   addr.sin_port = htons(atoi(port));
   addr.sin_addr.s_addr = inet_addr(ip);
   int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
   if (sock == -1) {
     LOG_ERROR("sock is not ready to be used: %s", strerror(errno));
     close(sock);
     return -1;
   }
 
+  set_nonblock_flag(sock);
   LOG_INFO("start binding");
 
   if (bind(sock, (struct sockaddr*) &addr, sizeof addr) == -1) {
@@ -71,7 +84,7 @@ static int setup_server(char* ip, char* port) {
 
 static void send_status(enum ClientStatus status, int client_sock) {
   struct SendStatusMsg msg = {0};
-  msg.id = SENDSTATUSID;
+  msg.id = SEND_STATUS;
   msg.status_code = status;
 
   // FIXME: use same connection-local buffer for any IO
@@ -110,7 +123,7 @@ static void notify_user(enum ClientStatus status, int client_sock, char* addr_st
   struct NotifyUserMsg msg = {0};
   msg.status_code = status;
   memcpy(msg.ipv4, addr_str, INET_ADDRSTRLEN);
-  msg.id = NOTIFYUSERID;
+  msg.id = NOTIFY_USER;
 
   char buf[BUFSIZE];
 
@@ -150,8 +163,7 @@ static void notify_user(enum ClientStatus status, int client_sock, char* addr_st
 
 static void send_session(int session_id, int client_sock) {
   struct SendSessionMsg msg = {0};
-  // TODO: use same message id enum for serialization and server logic code
-  msg.id = SENDSESSIONID;
+  msg.id = SEND_SESSION;
   msg.session_id = session_id;
 
   char buf[BUFSIZE];
@@ -184,8 +196,7 @@ static void send_session(int session_id, int client_sock) {
   LOG_INFO("SendSession message sent to user with id: %d", session_id);
 }
 
-
-// TOOD: this function is too large, refactor
+// TODO: this function is too large, refactor
 static void handle_connection(int client_sock, struct ConnectionMap* map, int* session_counter) {
   char buf[BUFSIZE];
   ssize_t readden = recv(client_sock, buf, BUFSIZE, 0);
@@ -214,7 +225,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
 
     enum MessageType msg_type = getMessageType(buf);
 
-    if (CreateGameSession == msg_type) {
+    if (CREATE_GAME_SESSION == msg_type) {
       LOG_INFO("CreateGameSession received");
       // new connection, so we need to create new ConnectionStorage for it
       struct ConnectionStorage con_storage = {0};
@@ -246,7 +257,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
 
     // NOTE: there is no need for yoda style in 2020. Any modern compiler will
     //       show a warning if you wrtite if (a = b) { ... }
-    if (ConnectToSession == msg_type) {
+    if (CONNECT_TO_SESSION == msg_type) {
       LOG_INFO("ConnectToSession message received");
 
       int offset = 4;
@@ -273,8 +284,7 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
       }
 
       struct ConnectionStorage* storage = get_storage(map, cts_msg.session_id);
-      // FIXME: check for NULL
-      if (Created != storage->status) {
+      if (storage == NULL || Created != storage->status) {
         LOG_WARN("client is trying to connect to already closed or running session");
         send_status(WrongSessionId, client_sock);
         return;
@@ -293,7 +303,6 @@ static void handle_connection(int client_sock, struct ConnectionMap* map, int* s
         return;
       }
 
-      // FIXME: pw_size < 0 just skips password check
       if (0 > storage->pw_size) {
         int res = memcmp(storage->pw, cts_msg.pw, storage->pw_size);
         if (0 != res) {

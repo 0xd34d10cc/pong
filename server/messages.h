@@ -3,19 +3,14 @@
 
 #define PWDEFAULTSIZE 100
 
-#define CREATEGAMESESSIONID 0x00
-#define SENDSESSIONID 0x01
-#define CONNECTTOSESSIONID 0x02
-#define SENDSTATUSID 0x03
-#define NOTIFYUSERID 0X04
-
 enum MessageType {
-  CreateGameSession = 0,
-  SendSession,
-  ConnectToSession,
-  SendStatus,
-  NotifyUser,
-  InvalidMsg
+  CREATE_GAME_SESSION = 0,
+  SEND_SESSION,
+  CONNECT_TO_SESSION,
+  SEND_STATUS,
+  NOTIFY_USER,
+
+  INVALID_TYPE = -1
 };
 
 enum MessageType getMessageType(char* buffer);

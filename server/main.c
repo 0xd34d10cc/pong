@@ -10,14 +10,13 @@
 #define MAXMSGSIZE 120
 
 int main(int argc, char* argv[]) {
-  static int session_counter = 0;
   // ./server 127.0.0.1 1337
   if (argc != 3) {
     printf("invalid ip or port\n");
     return -1;
   }
 
-  printf("starting with %s : %s\n", argv[1], argv[2]);
+  LOG_INFO("starting with %s : %s", argv[1], argv[2]);
   struct ConnectionMap* con_map = malloc(sizeof(struct ConnectionMap));
   run(argv[1], argv[2],  con_map);
 
