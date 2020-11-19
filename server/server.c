@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include <errno.h>
+#include <string.h>
 
 #include <sys/epoll.h>
 #include <arpa/inet.h>
@@ -10,6 +11,9 @@
 
 #include "network_session.h"
 #include "session.h"
+#include "messages.h"
+#include "log.h"
+#include "bool.h"
 
 // TODO: use accept4
 static void set_nonblocking(int socket) {

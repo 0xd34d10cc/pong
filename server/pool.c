@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 
-void pool_init(ObjectPool* pool, int object_size) {
-  assert(object_size > sizeof(void*));
+void pool_init(Pool* pool, int object_size) {
+  assert(object_size >= sizeof(void*));
   pool->size = 0;
   pool->entry_size = object_size;
   pool->free = pool->buffer;
@@ -23,7 +23,7 @@ void pool_init(ObjectPool* pool, int object_size) {
   memcpy(last_obj, &nullptr, sizeof (void*));
 }
 
-void* pool_aquire(ObjectPool* pool) {
+void* pool_aquire(Pool* pool) {
   void* entry = pool->free;
 
   if (entry == NULL || ((pool->size + 1) * pool->entry_size > POOL_MAX_CAPACITY)) {
@@ -36,16 +36,16 @@ void* pool_aquire(ObjectPool* pool) {
   return entry;
 }
 
-void pool_release(ObjectPool* pool, void* object) {
+void pool_release(Pool* pool, void* object) {
   memcpy(object, &pool->free, sizeof(void*));
   pool->free = object;
   pool->size--;
 }
 
-int pool_index(ObjectPool* pool, void* object) {
+int pool_index(Pool* pool, void* object) {
   return ((char*)object - pool->buffer) / pool->entry_size;
 }
 
-int pool_size(ObjectPool* pool) {
+int pool_size(Pool* pool) {
   return pool->size;
 }

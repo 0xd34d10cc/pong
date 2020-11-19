@@ -5,32 +5,19 @@
 
 #define POOL_MAX_CAPACITY 4096
 
-// typedef union PoolEntry {
-//  Session session;
-//  union PoolEntry* next;
-//} PoolEntry;
-
-// A simple object pool implemented via statically sized buffer and free list
-// WARNING: this object is not relocatable
-// typedef struct SessionPool {
-//  PoolEntry entries[POOL_MAX_SIZE];
-//  int size;
-//  PoolEntry* free;
-//} SessionPool;
-
-typedef struct ObjectPool {
+typedef struct Pool {
   char buffer[POOL_MAX_CAPACITY];
   int entry_size;
   int size;
   void* free;
-} ObjectPool;
+} Pool;
 
-void pool_init(ObjectPool* pool, int object_size);
-void pool_release(ObjectPool* pool, void* object);
-void* pool_aquire(ObjectPool* pool);
+void pool_init(Pool* pool, int object_size);
+void pool_release(Pool* pool, void* object);
+void* pool_aquire(Pool* pool);
 
-int pool_index(ObjectPool* pool, void* object);
-int pool_size(ObjectPool* pool);
+int pool_index(Pool* pool, void* object);
+int pool_size(Pool* pool);
 
 
 #endif // POOL_H

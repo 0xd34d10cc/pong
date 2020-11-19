@@ -16,9 +16,12 @@ typedef struct NetworkSession {
   char output[BUFSIZE];
   int sent;
 
-  struct sockaddr_in sock_addr;
+  struct sockaddr_in address;
 
   Session* game;
 } NetworkSession;
+
+void network_session_init(NetworkSession* session, int socket, struct sockaddr_in* address);
+void network_session_close(NetworkSession* session);
 
 #endif // NETWORK_SESSION_H

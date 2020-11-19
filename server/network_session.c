@@ -1,12 +1,14 @@
 #include "network_session.h"
 
+#include <string.h>
+
 #include <unistd.h>
 
-void network_session_init(NetworkSession* session, int socket, struct sockaddr_in* addr) {
+void network_session_init(NetworkSession* session, int socket, struct sockaddr_in* address) {
   session->socket = socket;
   session->received = 0;
   session->sent = 0;
-  memcpy(&session->sock_addr, addr, sizeof(struct sockaddr_in));
+  memcpy(&session->address, address, sizeof(session->address));
   session->game = NULL;
 }
 
