@@ -1,4 +1,5 @@
 #include "log.c"
+#include "panic.c"
 #include "pool.c"
 #include "messages.c"
 #include "network_session.c"

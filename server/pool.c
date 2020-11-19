@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "bool.h"
+
+
 void pool_init(Pool* pool, int object_size) {
   assert(object_size >= sizeof(void*));
   pool->size = 0;
@@ -26,14 +29,40 @@ void pool_init(Pool* pool, int object_size) {
 void* pool_aquire(Pool* pool) {
   void* entry = pool->free;
 
-  if (entry == NULL || ((pool->size + 1) * pool->entry_size > POOL_CAPACITY)) {
+  if (entry == NULL) {
     // no capacity
     return NULL;
   }
 
   pool->size++;
-  pool->free = *(void**)entry;
+  memcpy(&pool->free, entry, sizeof(pool->free));
   return entry;
+}
+
+static bool pool_is_slot_taken(Pool* pool, int slot) {
+  void* entry = pool->buffer + pool->entry_size * slot;
+
+  // FIXME: do that in O(1) using bitvec
+  void* head = pool->free;
+  while (head != NULL) {
+    if (head == entry) {
+      return false;
+    }
+
+    void* next;
+    memcpy(&next, head, sizeof(next));
+    head = next;
+  }
+
+  return true;
+}
+
+void* pool_at(Pool* pool, int index) {
+  if (index < 0 || index > POOL_CAPACITY / pool->entry_size || !pool_is_slot_taken(pool, index)) {
+    return NULL;
+  }
+
+  return pool->buffer + pool->entry_size * index;
 }
 
 void pool_release(Pool* pool, void* object) {

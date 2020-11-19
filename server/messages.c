@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "panic.h"
 #include "bool.h"
 
 #define NOT_ENOUGH_DATA 0
@@ -18,7 +19,7 @@ static int read_create_session(CreateSession* message, const char* buffer, size_
 }
 
 static int read_session_created(SessionCreated* message, const char* buffer, size_t msg_size) {
-  if (msg_size < sizeof(message->session_id)) {
+  if (msg_size != sizeof(message->session_id)) {
     return PARSE_ERROR;
   }
 
@@ -26,39 +27,38 @@ static int read_session_created(SessionCreated* message, const char* buffer, siz
   return msg_size;
 }
 
-static int read_join_session(JoinSession* message, const char* buffer, size_t msg_size) {
-  if (msg_size < sizeof(message->session_id)) {
+static int read_join_session(JoinSession* message, const char* buffer, size_t message_size) {
+  if (message_size < sizeof(message->session_id)) {
     return PARSE_ERROR;
   }
 
   memcpy(&message->session_id, buffer, sizeof(message->session_id));
 
-  size_t data_left = msg_size - sizeof(message->session_id);
+  size_t data_left = message_size - sizeof(message->session_id);
   if (data_left == 0 || data_left > sizeof(message->password) || buffer[data_left - 1] != '\0') {
     return PARSE_ERROR;
   }
 
   memcpy(message->password, buffer + sizeof(message->session_id), data_left);
-  return msg_size;
+  return message_size;
 }
 
-static int read_session_joined(SessionJoined* message, const char* buffer, size_t msg_size) {
-  if (msg_size < sizeof(message->status_code)) {
+static int read_session_joined(SessionJoined* message, const char* buffer, size_t message_size) {
+  if (message_size == 0 || message_size > sizeof(message->ipv4) || buffer[message_size - 1] != '\0') {
     return PARSE_ERROR;
   }
 
-  memcpy(&message->status_code, buffer, sizeof(message->status_code));
-  if (message->status_code < 0 || message->status_code >= SESSION_JOIN_STATUS_MAX) {
+  memcpy(message->ipv4, buffer, message_size);
+  return message_size;
+}
+
+static int read_error_status(ErrorStatus* message, const char* buffer, size_t message_size) {
+  if (message_size != sizeof(message->status)) {
     return PARSE_ERROR;
   }
 
-  size_t data_left = msg_size - sizeof(message->status_code);
-  if (data_left == 0 || data_left > sizeof(message->ipv4) || buffer[data_left - 1] != '\0') {
-    return PARSE_ERROR;
-  }
-
-  memcpy(message->ipv4, buffer + sizeof(message->status_code), data_left);
-  return msg_size;
+  memcpy(&message->status, buffer, sizeof(message->status));
+  return message_size;
 }
 
 static int read_message(void* message, const char* buffer, size_t size, bool is_server) {
@@ -86,14 +86,15 @@ static int read_message(void* message, const char* buffer, size_t size, bool is_
   if (is_server) {
     ServerMessage* server_message = (ServerMessage*)message;
     switch (message_id) {
-      case SESSION_CREATED: {
+      case SESSION_CREATED:
         n = read_session_created(&server_message->session_created, buffer + offset, message_size - offset);
         break;
-      }
-      case SESSION_JOINED: {
+      case SESSION_JOINED:
         n = read_session_joined(&server_message->session_joined, buffer + offset, message_size - offset);
         break;
-      }
+      case ERROR_STATUS:
+        n = read_error_status(&server_message->error_status, buffer + offset, message_size - offset);
+        break;
       default: {
         n = PARSE_ERROR;
         break;
@@ -105,18 +106,15 @@ static int read_message(void* message, const char* buffer, size_t size, bool is_
   else {
     ClientMessage* client_message = (ClientMessage*)message;
     switch (message_id) {
-      case CREATE_SESSION: {
+      case CREATE_SESSION:
         n = read_create_session(&client_message->create_session, buffer + offset, message_size - offset);
         break;
-      }
-      case JOIN_SESSION: {
+      case JOIN_SESSION:
         n = read_join_session(&client_message->join_session, buffer + offset,  message_size - offset);
         break;
-      }
-      default: {
+      default:
         n = PARSE_ERROR;
         break;
-      }
     }
 
     client_message->id = message_id;
@@ -171,14 +169,22 @@ static int write_join_session(const JoinSession* message, char* buffer, size_t s
 }
 
 static int write_session_joined(const SessionJoined* message, char* buffer, size_t size) {
-  size_t ip_len = strlen(message->ipv4) + 1;
-  int message_size = sizeof(message->status_code) + ip_len;
+  int message_size = strlen(message->ipv4) + 1;
   if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  memcpy(buffer, &message->status_code, sizeof(message->status_code));
-  memcpy(buffer + sizeof(message->status_code), message->ipv4, ip_len);
+  memcpy(buffer, message->ipv4, message_size);
+  return message_size;
+}
+
+static int write_error_status(const ErrorStatus* message, char* buffer, size_t size) {
+  int message_size = sizeof(message->status);
+  if (message_size > size) {
+    return NOT_ENOUGH_DATA;
+  }
+
+  memcpy(buffer, &message->status, sizeof(message->status));
   return message_size;
 }
 
@@ -194,28 +200,33 @@ static int write_message(const void* message, char* buffer, size_t size, bool is
   if (is_server) {
     ServerMessage* server_message = (ServerMessage*)message;
     switch (server_message->id) {
-      case SESSION_CREATED: {
+      case SESSION_CREATED:
         message_size = write_session_created(&server_message->session_created, buffer + min_size, size - min_size);
         break;
-      }
-      case SESSION_JOINED: {
+      case SESSION_JOINED:
         message_size = write_session_joined(&server_message->session_joined, buffer + min_size, size - min_size);
         break;
-      }
+      case ERROR_STATUS:
+        message_size = write_error_status(&server_message->error_status, buffer + min_size, size - min_size);
+        break;
+      default:
+        PANIC("Unhandled message id: %d", server_message->id);
+        break;
     }
     message_id = server_message->id;
   }
   else {
     ClientMessage* client_message = (ClientMessage*)message;
     switch (client_message->id) {
-      case CREATE_SESSION: {
+      case CREATE_SESSION:
         message_size = write_create_session(&client_message->create_session, buffer + min_size, size - min_size);
         break;
-      }
-      case JOIN_SESSION: {
+      case JOIN_SESSION:
         message_size = write_join_session(&client_message->join_session, buffer + min_size, size - min_size);
         break;
-      }
+      default:
+        PANIC("Unhandled message id: %d", client_message->id);
+        break;
     }
     message_id = client_message->id;
   }

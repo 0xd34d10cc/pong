@@ -19,6 +19,7 @@ typedef enum {
 
 typedef struct NetworkSession NetworkSession;
 
+// TODO: rename this sturct to Lobby and update all related enums & comments
 typedef struct Session {
   NetworkSession* player1;
   NetworkSession* player2;

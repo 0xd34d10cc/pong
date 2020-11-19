@@ -5,32 +5,17 @@
 
 #include "config.h"
 
-// Status that we provide to end users about connection success or failure (SessionJoined message)
-typedef enum {
-  // Successfully joined game session
-  JOINED = 0x0,
-
-  // Provided wrong session ID
-  INVALID_SESSION_ID = 0x1,
-
-  // Provided wrong password for existing session
-  INVALID_PASSWORD = 0x2,
-
-  // internal error means that something went wrong inside server
-  INTERNAL_ERROR = 0x3,
-
-  SESSION_JOIN_STATUS_MAX = 0x4
-} SessionJoinStatus;
-
 typedef enum {
   // client messages
   CREATE_SESSION = 0x0,
   JOIN_SESSION = 0x1,
 
   // server messages
+  ERROR_STATUS = 0xff,
   SESSION_CREATED = 0x2,
   SESSION_JOINED = 0x3,
 } MessageType;
+
 
 // Create a new game session
 typedef struct {
@@ -49,11 +34,35 @@ typedef struct {
 } JoinSession;
 
 // Sent in response to JoinSession message
-// and also to the owner of session
+// and also to the owner of game lobby
 typedef struct {
-  int status_code;
   char ipv4[16];
 } SessionJoined;
+
+// Error statuses
+enum {
+  // There are already 2 players in this session
+  SESSION_IS_FULL,
+
+  // Provided session id is invalid
+  INVALID_SESSION_ID,
+
+  // Provided password is invalid
+  INVALID_PASSWORD,
+
+  // Opponent disconnected unexpectedly
+  OPPONENT_DISCONNECTED,
+
+  // internal error means that something went wrong inside server
+  INTERNAL_ERROR,
+
+  ERROR_STATUS_MAX
+};
+
+// Message sent in case of error
+typedef struct {
+  int status;
+} ErrorStatus;
 
 // Client message structure
 typedef struct {
@@ -64,13 +73,13 @@ typedef struct {
   };
 } ClientMessage;
 
-
 // Server message structure
 typedef struct ServerMsg {
   unsigned short id;
   union {
     SessionCreated session_created;
     SessionJoined session_joined;
+    ErrorStatus error_status;
   };
 } ServerMessage;
 

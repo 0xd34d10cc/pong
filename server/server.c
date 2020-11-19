@@ -188,23 +188,25 @@ static int server_send_message(Server* server, NetworkSession* session, ServerMe
   return server_register(server, session, IO_EVENT_READ | IO_EVENT_WRITE);
 }
 
+static int server_send_error(Server* server, NetworkSession* session, int error) {
+  ServerMessage message;
+  message.id = ERROR_STATUS;
+  message.error_status.status = error;
+  return server_send_message(server, session, &message);
+}
+
 static int server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
   if (owner->game != NULL) {
     int session_id = pool_index(&server->sessions, owner->game);
     LOG_INFO("[%02d] Failed to create game session: client already in session #%d", owner->socket, session_id);
-    ServerMessage response;
-    response.id = SESSION_CREATED;
-    response.session_created.session_id = -1;
-    return server_send_message(server, owner, &response);
+    // TODO: disconnect from current session and create a new one instead
+    return server_send_error(server, owner, INTERNAL_ERROR);
   }
 
   Session* session = pool_aquire(&server->sessions);
   if (session == NULL) {
     LOG_ERROR("[%02d] Failed to create new session: session pool is at capacity", owner->socket);
-    ServerMessage response;
-    response.id = SESSION_CREATED;
-    response.session_created.session_id = -1;
-    return server_send_message(server, owner, &response);
+    return server_send_error(server, owner, INTERNAL_ERROR);
   }
 
   session_init(session, owner, message->password);
@@ -220,8 +222,38 @@ static int server_create_session(Server* server, NetworkSession* owner, CreateSe
 }
 
 static int server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
-  // TODO
-  return 0;
+  int session_id = message->session_id;
+  Session* session = pool_at(&server->sessions, session_id);
+  if (session == NULL) {
+    LOG_WARN("[%02d] Tried to join to invalid session #%d", guest->socket, session_id);
+    return server_send_error(server, guest, INVALID_SESSION_ID);
+  }
+
+  if (session->player2 != NULL || session->player1 == guest) {
+    LOG_WARN("[%02d] Failed to join session #%d: lobby is full", guest->socket, session_id);
+    return server_send_error(server, guest, SESSION_IS_FULL);
+  }
+
+  if (strcmp(session->password, message->password)) {
+    LOG_WARN("[%02d] Failed to join session #%d: invalid password", guest->socket, session_id);
+    return server_send_error(server, guest, INVALID_PASSWORD);
+  }
+
+  session->player2 = guest;
+  guest->game = session;
+
+  NetworkSession* owner = session->player1;
+
+  ServerMessage response;
+  response.id = SESSION_JOINED;
+  strcpy(response.session_joined.ipv4, inet_ntoa(owner->address.sin_addr));
+  if (server_send_message(server, guest, &response) < 0) {
+    return -1;
+  }
+
+  strcpy(response.session_joined.ipv4, inet_ntoa(guest->address.sin_addr));
+  LOG_INFO("[%02d] Joined session #%d", guest->socket, session_id);
+  return server_send_message(server, owner, &response);
 }
 
 static int server_process_message(Server* server, NetworkSession* session, ClientMessage* message) {
@@ -329,8 +361,10 @@ static void server_disconnect(Server* server, NetworkSession* session) {
     }
 
     if (opponent) {
-      // TODO: send message to opponent
-
+      opponent->game = NULL;
+      if (server_send_error(server, opponent, OPPONENT_DISCONNECTED) < 0) {
+        server_disconnect(server, opponent);
+      }
     }
 
     LOG_INFO("Session #%d closed", session_id);
