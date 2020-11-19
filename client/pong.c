@@ -6,7 +6,7 @@
 #include <SDL2/SDL_timer.h>
 
 
-int pong_init(Pong* pong) {
+int pong_init(Pong* pong, const char* ip, unsigned short port) {
   pong->window = SDL_CreateWindow(
       "pong",
       SDL_WINDOWPOS_UNDEFINED,
@@ -26,8 +26,19 @@ int pong_init(Pong* pong) {
   }
 
   game_init(&pong->game, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-  pong->running = true;
 
+  if (reactor_init(&pong->reactor)) {
+    LOG_ERROR("Can't initialize reactor");
+    return -1;
+  }
+
+  pong->connection_state.state = LOCAL;
+  strcpy(pong->connection_state.ip, ip);
+  pong->connection_state.port = port;
+
+  network_session_init(&pong->network_session);
+
+  pong->running = true;
   return 0;
 }
 

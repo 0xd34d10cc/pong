@@ -10,10 +10,27 @@
 
 
 int main(int argc, char* argv[]) {
-  if (argc > 1) {
-    LOG_ERROR("Unexpected number of arguments: got %d, expected 0", argc - 1);
+  if (argc > 3) {
+    LOG_ERROR("Unexpected number of arguments: got %d, expected 2", argc - 1);
     return EXIT_FAILURE;
   }
+
+  const char* host = argc < 2 ? "127.0.0.1" : argv[1];
+  if (strlen(host) > 16) {
+    LOG_ERROR("Invalid ip address: %s", host);
+    return EXIT_FAILURE;
+  }
+
+  unsigned short port = 1337;
+  if (argc == 3) {
+    port = (unsigned short)atoi(argv[2]);
+
+    if (port == 0) {
+      LOG_ERROR("%s is not a valid port number", argv[2]);
+      return EXIT_FAILURE;
+    }
+  }
+
 
 #ifdef _WIN32
   SDL_SetMainReady();
@@ -35,7 +52,7 @@ int main(int argc, char* argv[]) {
            SDL_GetCPUCount(), SDL_GetSystemRAM());
 
   Pong pong;
-  if (pong_init(&pong)) {
+  if (pong_init(&pong, host, port)) {
     return EXIT_FAILURE;
   }
 

@@ -1,5 +1,7 @@
 #include "log.c"
 #include "game.c"
 #include "renderer.c"
+#include "reactor.c"
+#include "network_session.c"
 #include "pong.c"
 #include "main.c"

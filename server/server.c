@@ -16,6 +16,7 @@
 #include "bool.h"
 
 // TODO: use accept4
+// TOOD: move this function to some common part
 static void set_nonblocking(int socket) {
   int flags = fcntl(socket, F_GETFL, 0);
   if (flags == -1) {
