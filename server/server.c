@@ -115,6 +115,7 @@ static int server_accept(Server* server) {
       LOG_ERROR("Failed to add client socket to epoll: %s", strerror(errno));
       return -1;
     }
+    session->events |= IO_EVENT_READ;
 
     LOG_INFO("[%02d] Client successfully connected", socket);
   }
@@ -122,19 +123,88 @@ static int server_accept(Server* server) {
   return 0;
 }
 
+static int server_register(Server* server, NetworkSession* session, unsigned events) {
+  if (session->events == events) {
+    return 0;
+  }
+
+  session->events = events;
+  unsigned poll_events = 0;
+  if (session->events &  IO_EVENT_READ) {
+    poll_events |= EPOLLIN;
+  }
+
+  if (session->events & IO_EVENT_WRITE) {
+    poll_events |= EPOLLOUT;
+  }
+
+  struct epoll_event event;
+  event.events = poll_events;
+  event.data.ptr = session;
+  if (epoll_ctl(server->poll, EPOLL_CTL_MOD, session->socket, &event) == -1) {
+    LOG_ERROR("[%02d] Failed to modify event subscription: %s", session->socket, strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
+
+static int server_write(Server* server, NetworkSession* session) {
+  int total = 0;
+  while (total != session->to_send) {
+    // TODO: flags
+    int sent = send(session->socket, session->output + total, session->to_send - total, 0);
+    if (sent == -1) {
+      if (errno == EWOULDBLOCK) {
+        break;
+      }
+
+      LOG_WARN("[%02d] send() failed: %s", session->socket, strerror(errno));
+      return -1;
+    }
+
+    total += sent;
+  }
+
+  memmove(session->output, session->output + total, session->to_send - total);
+  session->to_send -= total;
+
+  if (session->to_send == 0) {
+    // no more data to send, unregister from write events
+    return server_register(server, session, IO_EVENT_READ);
+  }
+
+  return 0;
+}
+
+static int server_send_message(Server* server, NetworkSession* session, ServerMessage* message) {
+  int n = server_message_write(message, session->output + session->to_send, sizeof(session->output) - session->to_send);
+  if (n == 0) {
+    LOG_WARN("[%02d] Failed to send message: outbut buffer is at capacity", session->socket);
+    return -1;
+  }
+
+  session->to_send += n;
+  return server_register(server, session, IO_EVENT_READ | IO_EVENT_WRITE);
+}
+
 static int server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
   if (owner->game != NULL) {
     int session_id = pool_index(&server->sessions, owner->game);
     LOG_INFO("[%02d] Failed to create game session: client already in session #%d", owner->socket, session_id);
-    // TODO: send response
-    return 0;
+    ServerMessage response;
+    response.id = SESSION_CREATED;
+    response.session_created.session_id = -1;
+    return server_send_message(server, owner, &response);
   }
 
   Session* session = pool_aquire(&server->sessions);
   if (session == NULL) {
     LOG_ERROR("[%02d] Failed to create new session: session pool is at capacity", owner->socket);
-    // TODO: send response
-    return -1;
+    ServerMessage response;
+    response.id = SESSION_CREATED;
+    response.session_created.session_id = -1;
+    return server_send_message(server, owner, &response);
   }
 
   session_init(session, owner, message->password);
@@ -143,8 +213,10 @@ static int server_create_session(Server* server, NetworkSession* owner, CreateSe
   int session_id = pool_index(&server->sessions, session);
   LOG_INFO("[%02d] Created session #%d with password \"%s\"", owner->socket, session_id, message->password);
 
-  // TODO: send response
-  return 0;
+  ServerMessage response;
+  response.id = SESSION_CREATED;
+  response.session_created.session_id = session_id;
+  return server_send_message(server, owner, &response);
 }
 
 static int server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
@@ -190,7 +262,6 @@ static int server_read(Server* server, NetworkSession* session) {
     }
 
     if (read == 0) {
-      LOG_INFO("[%02d] Disconnected", session->socket);
       return -1;
     }
 
@@ -220,10 +291,6 @@ static int server_read(Server* server, NetworkSession* session) {
   return 0;
 }
 
-static int server_write(Server* server, NetworkSession* session) {
-  // TODO
-  return 0;
-}
 
 static int server_event(Server* server, NetworkSession* session, unsigned int event) {
   if (event & EPOLLIN) {
@@ -271,6 +338,7 @@ static void server_disconnect(Server* server, NetworkSession* session) {
     pool_release(&server->sessions, session->game);
   }
 
+  LOG_INFO("[%02d] Disconnected", session->socket);
   network_session_close(session);
   pool_release(&server->connections, session);
 }

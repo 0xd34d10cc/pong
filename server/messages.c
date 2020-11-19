@@ -48,7 +48,7 @@ static int read_session_joined(SessionJoined* message, const char* buffer, size_
   }
 
   memcpy(&message->status_code, buffer, sizeof(message->status_code));
-  if (message->status_code < 0 || message->status_code >= SESSION_JOINED_STATUS_MAX) {
+  if (message->status_code < 0 || message->status_code >= SESSION_JOIN_STATUS_MAX) {
     return PARSE_ERROR;
   }
 

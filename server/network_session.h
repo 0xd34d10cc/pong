@@ -7,14 +7,20 @@
 
 typedef struct Session Session;
 
+enum {
+  IO_EVENT_READ = (1 << 0),
+  IO_EVENT_WRITE = (1 << 1)
+} IoEvent;
+
 typedef struct NetworkSession {
   int socket;
+  unsigned events;
 
   char input[NET_BUFFER_SIZE];
   int received;
 
   char output[NET_BUFFER_SIZE];
-  int sent;
+  int to_send;
 
   struct sockaddr_in address;
 

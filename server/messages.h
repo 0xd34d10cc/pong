@@ -7,27 +7,29 @@
 
 // Status that we provide to end users about connection success or failure (SessionJoined message)
 typedef enum {
-  // Successfully connected to the game session
-  CONNECTED,
+  // Successfully joined game session
+  JOINED = 0x0,
+
   // Provided wrong session ID
-  WRONG_SESSION_ID,
+  INVALID_SESSION_ID = 0x1,
+
   // Provided wrong password for existing session
-  WRONG_PASSWORD,
+  INVALID_PASSWORD = 0x2,
 
   // internal error means that something went wrong inside server
-  INTERNAL_ERROR,
+  INTERNAL_ERROR = 0x3,
 
-  SESSION_JOINED_STATUS_MAX
+  SESSION_JOIN_STATUS_MAX = 0x4
 } SessionJoinStatus;
 
 typedef enum {
   // client messages
-  CREATE_SESSION,
-  JOIN_SESSION,
+  CREATE_SESSION = 0x0,
+  JOIN_SESSION = 0x1,
 
   // server messages
-  SESSION_CREATED,
-  SESSION_JOINED,
+  SESSION_CREATED = 0x2,
+  SESSION_JOINED = 0x3,
 } MessageType;
 
 // Create a new game session
