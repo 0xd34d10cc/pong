@@ -1,0 +1,10 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define MAX_PASSWORD_SIZE 32
+#define MAX_MESSAGE_SIZE 1024
+
+#define NET_BUFFER_SIZE 512
+#define POOL_CAPACITY 4096
+
+#endif // CONFIG_H

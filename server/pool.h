@@ -3,10 +3,8 @@
 
 #include "network_session.h"
 
-#define POOL_MAX_CAPACITY 4096
-
 typedef struct Pool {
-  char buffer[POOL_MAX_CAPACITY];
+  char buffer[POOL_CAPACITY];
   int entry_size;
   int size;
   void* free;

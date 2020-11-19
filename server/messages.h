@@ -3,8 +3,7 @@
 
 #include <stddef.h>
 
-#define MAX_PASSWORD_SIZE 32
-#define MAX_MESSAGE_SIZE 1024
+#include "config.h"
 
 // Status that we provide to end users about connection success or failure (SessionJoined message)
 typedef enum {

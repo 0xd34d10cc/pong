@@ -9,7 +9,7 @@ void pool_init(Pool* pool, int object_size) {
   pool->size = 0;
   pool->entry_size = object_size;
   pool->free = pool->buffer;
-  int pool_max_size = POOL_MAX_CAPACITY / object_size;
+  int pool_max_size = POOL_CAPACITY / object_size;
 
   for (int i = 0; i < pool_max_size - 1; ++i) {
     int offset = pool->entry_size * i;
@@ -26,7 +26,7 @@ void pool_init(Pool* pool, int object_size) {
 void* pool_aquire(Pool* pool) {
   void* entry = pool->free;
 
-  if (entry == NULL || ((pool->size + 1) * pool->entry_size > POOL_MAX_CAPACITY)) {
+  if (entry == NULL || ((pool->size + 1) * pool->entry_size > POOL_CAPACITY)) {
     // no capacity
     return NULL;
   }

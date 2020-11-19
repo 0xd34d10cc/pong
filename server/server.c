@@ -122,32 +122,52 @@ static int server_accept(Server* server) {
   return 0;
 }
 
-static void server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
-  LOG_INFO("[%02d] Creating session with password %s", owner->socket, message->password);
-  // TODO
+static int server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
+  if (owner->game != NULL) {
+    int session_id = pool_index(&server->sessions, owner->game);
+    LOG_INFO("[%02d] Failed to create game session: client already in session #%d", owner->socket, session_id);
+    // TODO: send response
+    return 0;
+  }
+
+  Session* session = pool_aquire(&server->sessions);
+  if (session == NULL) {
+    LOG_ERROR("[%02d] Failed to create new session: session pool is at capacity", owner->socket);
+    // TODO: send response
+    return -1;
+  }
+
+  session_init(session, owner, message->password);
+  owner->game = session;
+
+  int session_id = pool_index(&server->sessions, session);
+  LOG_INFO("[%02d] Created session #%d with password \"%s\"", owner->socket, session_id, message->password);
+
+  // TODO: send response
+  return 0;
 }
 
-static void server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
-  LOG_INFO("[%02d] Joining session %d", guest->socket, message->session_id);
+static int server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
   // TODO
+  return 0;
 }
 
 static int server_process_message(Server* server, NetworkSession* session, ClientMessage* message) {
-  if (session->game == NULL) {
-    switch (message->id) {
-      case CREATE_SESSION:
-        server_create_session(server, session, &message->create_session);
-        break;
-      case JOIN_SESSION:
-        server_join_session(server, session, &message->join_session);
-        break;
-      default:
-        LOG_WARN("[%02d] Unexpected first message: %d", session->socket, message->id);
-        return -1;
-    }
+  int status = 0;
+  switch (message->id) {
+    case CREATE_SESSION:
+      status = server_create_session(server, session, &message->create_session);
+      break;
+    case JOIN_SESSION:
+      status = server_join_session(server, session, &message->join_session);
+      break;
+    default:
+      LOG_WARN("[%02d] Unexpected message: %d", session->socket, message->id);
+      status = -1;
+      break;
   }
 
-  return 0;
+  return status;
 }
 
 static int server_read(Server* server, NetworkSession* session) {
@@ -221,11 +241,36 @@ static int server_event(Server* server, NetworkSession* session, unsigned int ev
   return 0;
 }
 
-// Disconnect session without notifying the client
 static void server_disconnect(Server* server, NetworkSession* session) {
   if (epoll_ctl(server->poll, EPOLL_CTL_DEL, session->socket, NULL) == -1) {
     LOG_ERROR("Failed to remove socket from epoll: %s", strerror(errno));
   }
+
+  if (session->game) {
+    int session_id = pool_index(&server->sessions, session->game);
+
+    NetworkSession* opponent = NULL;
+    if (session == session->game->player1) {
+      opponent = session->game->player2;
+    }
+    else if (session == session->game->player2) {
+      opponent = session->game->player1;
+    }
+    else {
+      LOG_ERROR("[%02d] Inconsistent state: player is in game session #%d, but he isn't one of the players",
+                session->socket, session_id);
+    }
+
+    if (opponent) {
+      // TODO: send message to opponent
+
+    }
+
+    LOG_INFO("Session #%d closed", session_id);
+    session_close(session->game);
+    pool_release(&server->sessions, session->game);
+  }
+
   network_session_close(session);
   pool_release(&server->connections, session);
 }

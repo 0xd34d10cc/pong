@@ -1,7 +1,7 @@
 #ifndef NETWORK_SESSION_H
 #define NETWORK_SESSION_H
 
-#define BUFSIZE 512
+#include "config.h"
 
 #include <netinet/in.h>
 
@@ -10,10 +10,10 @@ typedef struct Session Session;
 typedef struct NetworkSession {
   int socket;
 
-  char input[BUFSIZE];
+  char input[NET_BUFFER_SIZE];
   int received;
 
-  char output[BUFSIZE];
+  char output[NET_BUFFER_SIZE];
   int sent;
 
   struct sockaddr_in address;

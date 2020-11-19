@@ -2,6 +2,7 @@
 #define SESSION_H
 
 #include "game.h"
+#include "config.h"
 
 // Status that indicate status of inner server
 typedef enum {
@@ -21,9 +22,13 @@ typedef struct NetworkSession NetworkSession;
 typedef struct Session {
   NetworkSession* player1;
   NetworkSession* player2;
+  char password[MAX_PASSWORD_SIZE];
 
   SessionState state;
   Game game;
 } Session;
+
+void session_init(Session* session, NetworkSession* owner, const char* password);
+void session_close(Session* session);
 
 #endif // SESSION_H

@@ -2,5 +2,7 @@
 #include "pool.c"
 #include "messages.c"
 #include "network_session.c"
+#include "session.c"
+#include "game.c"
 #include "server.c"
 #include "main.c"
