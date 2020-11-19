@@ -11,10 +11,6 @@
 #define DEFAULT_WINDOW_WIDTH 800
 #define DEFAULT_WINDOW_HEIGHT 600
 
-typedef int bool;
-#define true 1
-#define false 0
-
 typedef struct Game {
   int state;
 

@@ -1,337 +1,240 @@
 #include "messages.h"
 
-#include <stdlib.h>
 #include <string.h>
 
-#include "log.h"
+#include "bool.h"
 
 #define NOT_ENOUGH_DATA 0
 #define PARSE_ERROR -1
 
-static int parse_create_session(struct CreateGameSessionMsg* msg, const char* buffer, size_t msg_size) {
-  memcpy(&msg->pw_size, buffer, sizeof(int));
 
-  if (msg->pw_size != msg_size - sizeof(int)) {
+static int read_create_session(CreateSession* message, const char* buffer, size_t msg_size) {
+  if (msg_size == 0 || msg_size > sizeof(message->password) || buffer[msg_size - 1] != '\0') {
     return PARSE_ERROR;
   }
 
-  if (msg->pw_size > PWDEFAULTSIZE) {
-    return PARSE_ERROR;
-  }
-
-  int offset = sizeof(int);
-  memcpy(msg->pw, buffer + offset, msg->pw_size);
+  memcpy(message->password, buffer, msg_size);
   return msg_size;
 }
 
-static int parse_send_session(struct SendSessionMsg* msg, const char* buffer, size_t msg_size) {
-  memcpy(&msg->session_id, buffer, sizeof(int));
+static int read_session_created(SessionCreated* message, const char* buffer, size_t msg_size) {
+  if (msg_size < sizeof(message->session_id)) {
+    return PARSE_ERROR;
+  }
+
+  memcpy(&message->session_id, buffer, sizeof(message->session_id));
   return msg_size;
 }
 
-static int parse_connect_to_session(struct ConnectToSessionMsg* msg, const char* buffer, size_t msg_size) {
-  memcpy(&msg->session_id, buffer, sizeof(int));
-  int offset = sizeof(int);
-
-  memcpy(&msg->pw_size, buffer+offset, sizeof(int));
-  offset += sizeof(int);
-
-  if (msg->pw_size > PWDEFAULTSIZE) {
+static int read_join_session(JoinSession* message, const char* buffer, size_t msg_size) {
+  if (msg_size < sizeof(message->session_id)) {
     return PARSE_ERROR;
   }
 
-  //                                 pwsize      sessionid
-  if (msg->pw_size != msg_size - sizeof(int) - sizeof(int)) {
+  memcpy(&message->session_id, buffer, sizeof(message->session_id));
+
+  size_t data_left = msg_size - sizeof(message->session_id);
+  if (data_left == 0 || data_left > sizeof(message->password) || buffer[data_left - 1] != '\0') {
     return PARSE_ERROR;
   }
 
-  memcpy(msg->pw, buffer + offset, msg->pw_size);
+  memcpy(message->password, buffer + sizeof(message->session_id), data_left);
   return msg_size;
 }
 
-static int parse_send_status(struct SendStatusMsg* msg, const char* buffer, size_t msg_size) {
-  memcpy(&msg->status_code, buffer, sizeof(int));
-
-  if (msg->status_code < 0 || msg->status_code >= CLIENT_STATUS_MAX) {
+static int read_session_joined(SessionJoined* message, const char* buffer, size_t msg_size) {
+  if (msg_size < sizeof(message->status_code)) {
     return PARSE_ERROR;
   }
 
+  memcpy(&message->status_code, buffer, sizeof(message->status_code));
+  if (message->status_code < 0 || message->status_code >= SESSION_JOINED_STATUS_MAX) {
+    return PARSE_ERROR;
+  }
+
+  size_t data_left = msg_size - sizeof(message->status_code);
+  if (data_left == 0 || data_left > sizeof(message->ipv4) || buffer[data_left - 1] != '\0') {
+    return PARSE_ERROR;
+  }
+
+  memcpy(message->ipv4, buffer + sizeof(message->status_code), data_left);
   return msg_size;
 }
 
-static int parse_notify_user(struct NotifyUserMsg* msg, const char* buffer, size_t msg_size) {
-  memcpy(msg->ipv4, buffer, sizeof(msg->ipv4));
-  int offset = sizeof(msg->ipv4);
-  int isTerminated = 0;
-  for (int i = 0; i < sizeof(msg->ipv4); i++) {
-    if (msg->ipv4[i] == 0) {
-      isTerminated = 1;
-      break;
-    }
-  }
-
-  if (!isTerminated) {
-    return PARSE_ERROR;
-  }
-
-  memcpy(&msg->status_code, buffer + offset, sizeof(int));
-
-  if (msg->status_code < 0 || msg->status_code >= CLIENT_STATUS_MAX) {
-    return PARSE_ERROR;
-  }
-
-  return msg_size;
-}
-
-int parse_client_message(struct ClientMsg* msg, const char* buffer, size_t size) {
-  // message can't contains msg size
-  if (size < sizeof(int)) {
+static int read_message(void* message, const char* buffer, size_t size, bool is_server) {
+  unsigned message_size = 0;
+  if (size < sizeof(message_size)) {
     return NOT_ENOUGH_DATA;
   }
 
-  unsigned msg_size = 0;
-
-  memcpy(&msg_size, buffer, sizeof(unsigned));
-
-  if (msg_size > 1024 * 1024) {
-    LOG_WARN("msg size is bigger than 1 mb: %d", msg_size);
+  memcpy(&message_size, buffer, sizeof(message_size));
+  if (message_size > MAX_MESSAGE_SIZE) {
     return PARSE_ERROR;
   }
 
-  if (size < msg_size) {
+  if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  int offset = sizeof(unsigned);
-  short msg_id = 0;
+  int offset = sizeof(message_size);
 
-  memcpy(&msg_id, buffer+offset, sizeof(short));
-  offset += sizeof(short);
-  int n = 0;
-  switch (msg_id) {
-    case CREATE_GAME_SESSION: {
-      n = parse_create_session(&msg->create_game_session, buffer + offset, msg_size - offset);
-      break;
+  unsigned short message_id = 0;
+  memcpy(&message_id, buffer + offset, sizeof(message_id));
+  offset += sizeof(message_id);
+
+  int n = -1;
+  if (is_server) {
+    ServerMessage* server_message = (ServerMessage*)message;
+    switch (message_id) {
+      case SESSION_CREATED: {
+        n = read_session_created(&server_message->session_created, buffer + offset, message_size - offset);
+        break;
+      }
+      case SESSION_JOINED: {
+        n = read_session_joined(&server_message->session_joined, buffer + offset, message_size - offset);
+        break;
+      }
+      default: {
+        n = PARSE_ERROR;
+        break;
+      }
     }
-    case CONNECT_TO_SESSION: {
-      n = parse_connect_to_session(&msg->connect_to_session, buffer + offset,  msg_size - offset);
-      break;
+
+    server_message->id = message_id;
+  }
+  else {
+    ClientMessage* client_message = (ClientMessage*)message;
+    switch (message_id) {
+      case CREATE_SESSION: {
+        n = read_create_session(&client_message->create_session, buffer + offset, message_size - offset);
+        break;
+      }
+      case JOIN_SESSION: {
+        n = read_join_session(&client_message->join_session, buffer + offset,  message_size - offset);
+        break;
+      }
+      default: {
+        n = PARSE_ERROR;
+        break;
+      }
     }
-    default: {
-      n = PARSE_ERROR;
-      break;
-    }
+
+    client_message->id = message_id;
   }
 
   if (n <= 0) {
     return n;
   }
 
-  msg->id = msg_id;
-  return msg_size;
+  return message_size;
 }
 
-int parse_server_message(struct ServerMsg* msg, const char* buffer, size_t size) {
-  // message can't contains msg size
-  if (size < sizeof(int)) {
-    return NOT_ENOUGH_DATA;
-  }
+int client_message_read(ClientMessage* message, const char* buffer, size_t size) {
+  return read_message(message, buffer, size, false);
+}
 
-  unsigned msg_size = 0;
-
-  memcpy(&msg_size, buffer, sizeof(unsigned));
-
-  if (msg_size > 1024 * 1024) {
-    LOG_WARN("msg size is bigger than 1 mb: %d", msg_size);
-    return PARSE_ERROR;
-  }
-
-  if(size < msg_size) {
-    return NOT_ENOUGH_DATA;
-  }
-
-  int offset = sizeof(unsigned);
-  short msg_id = 0;
-
-  memcpy(&msg_id, buffer+offset, sizeof(short));
-  offset += sizeof(short);
-  int n = 0;
-  switch (msg_id) {
-    case SEND_SESSION: {
-      n = parse_send_session(&msg->send_session, buffer + offset, msg_size - offset);
-      break;
-    }
-    case SEND_STATUS: {
-      n = parse_send_status(&msg->send_status, buffer + offset,  msg_size - offset);
-      break;
-    }
-    case NOTIFY_USER: {
-      n = parse_notify_user(&msg->notify_user, buffer + offset,  msg_size - offset);
-      break;
-    }
-    default: {
-      n = PARSE_ERROR;
-      break;
-    }
-  }
-
-  if (n <= 0) {
-    return n;
-  }
-
-  msg->id = msg_id;
-  return msg_size;
+int server_message_read(ServerMessage* message, const char* buffer, size_t size) {
+  return read_message(message, buffer, size, true);
 }
 
 
-static int fill_create_session(const struct CreateGameSessionMsg* msg, char* buffer, size_t size) {
-  int msg_size = msg->pw_size + sizeof(msg->pw_size);
-
-  if (size < msg_size) {
+static int write_create_session(const CreateSession* message, char* buffer, size_t size) {
+  int message_size = strlen(message->password) + 1;
+  if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  int offset = 0;
-
-  memcpy(buffer, &msg->pw_size, sizeof(msg->pw_size));
-  offset += sizeof(msg->pw_size);
-
-  memcpy(buffer + offset, msg->pw, msg->pw_size);
-
-  return msg_size;
+  memcpy(buffer, message->password, message_size);
+  return message_size;
 }
 
-static int fill_send_session(const struct SendSessionMsg* msg, char* buffer, size_t size) {
-  int msg_size = sizeof(msg->session_id);
-
-  if (size < msg_size) {
+static int write_session_created(const SessionCreated* message, char* buffer, size_t size) {
+  int message_size = sizeof(message->session_id);
+  if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  memcpy(buffer, &msg->session_id, sizeof(msg->session_id));
-
-  return msg_size;
+  memcpy(buffer, &message->session_id, sizeof(message->session_id));
+  return message_size;
 }
 
-static int fill_connect_to_session(const struct ConnectToSessionMsg* msg, char* buffer, size_t size) {
-  int msg_size = sizeof(msg->pw_size) + sizeof(msg->session_id) + msg->pw_size;
-
-  if (size < msg_size) {
+static int write_join_session(const JoinSession* message, char* buffer, size_t size) {
+  size_t password_len = strlen(message->password) + 1;
+  int message_size = sizeof(message->session_id) + password_len;
+  if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  memcpy(buffer, &msg->session_id, sizeof(msg->session_id));
-  int offset = sizeof(msg->session_id);
-
-  memcpy(buffer + offset, &msg->pw_size, sizeof(msg->pw_size));
-  offset += sizeof(msg->pw_size);
-
-  memcpy(buffer + offset, msg->pw, msg->pw_size);
-
-  return msg_size;
+  memcpy(buffer, &message->session_id, sizeof(message->session_id));
+  memcpy(buffer + sizeof(message->session_id), message->password, password_len + 1);
+  return message_size;
 }
 
-static int fill_send_status(const struct SendStatusMsg* msg, char* buffer, size_t size) {
-  int msg_size = sizeof(msg->status_code);
-
-  if (size < msg_size) {
+static int write_session_joined(const SessionJoined* message, char* buffer, size_t size) {
+  size_t ip_len = strlen(message->ipv4) + 1;
+  int message_size = sizeof(message->status_code) + ip_len;
+  if (message_size > size) {
     return NOT_ENOUGH_DATA;
   }
 
-  memcpy(buffer, &msg->status_code, sizeof(msg->status_code));
-
-  return msg_size;
+  memcpy(buffer, &message->status_code, sizeof(message->status_code));
+  memcpy(buffer + sizeof(message->status_code), message->ipv4, ip_len);
+  return message_size;
 }
 
-static int fill_notify_user(const struct NotifyUserMsg* msg, char* buffer, size_t size) {
-  int msg_size = sizeof(msg->ipv4) + sizeof(msg->status_code);
-
-  if (size < msg_size) {
-    return NOT_ENOUGH_DATA;
-  }
-
-  memcpy(buffer, &msg->ipv4, sizeof(msg->ipv4));
-  int offset = sizeof(msg->ipv4);
-
-  memcpy(buffer + offset, &msg->status_code, sizeof(msg->status_code));
-
-  return msg_size;
-}
-
-int fill_server_message(const struct ServerMsg* msg, char* buffer, size_t size) {
-  int msg_size = 0;
-  int min_size = sizeof(int) + sizeof(short);
-
+static int write_message(const void* message, char* buffer, size_t size, bool is_server) {
+  // message size + message id
+  int min_size = sizeof(unsigned) + sizeof(unsigned short);
   if (size < min_size) {
     return NOT_ENOUGH_DATA;
   }
 
-  switch (msg->id) {
-    case SEND_SESSION: {
-      msg_size = fill_send_session(&msg->send_session, buffer + min_size, size - min_size);
-      break;
+  int message_size = 0;
+  unsigned short message_id = -1;
+  if (is_server) {
+    ServerMessage* server_message = (ServerMessage*)message;
+    switch (server_message->id) {
+      case SESSION_CREATED: {
+        message_size = write_session_created(&server_message->session_created, buffer + min_size, size - min_size);
+        break;
+      }
+      case SESSION_JOINED: {
+        message_size = write_session_joined(&server_message->session_joined, buffer + min_size, size - min_size);
+        break;
+      }
     }
-    case SEND_STATUS: {
-      msg_size = fill_send_status(&msg->send_status, buffer + min_size, size - min_size);
-      break;
+    message_id = server_message->id;
+  }
+  else {
+    ClientMessage* client_message = (ClientMessage*)message;
+    switch (client_message->id) {
+      case CREATE_SESSION: {
+        message_size = write_create_session(&client_message->create_session, buffer + min_size, size - min_size);
+        break;
+      }
+      case JOIN_SESSION: {
+        message_size = write_join_session(&client_message->join_session, buffer + min_size, size - min_size);
+        break;
+      }
     }
-    case NOTIFY_USER: {
-      msg_size = fill_notify_user(&msg->notify_user, buffer + min_size, size - min_size);
-      break;
-    }
-    default: {
-      LOG_ERROR("Invalid message id is set: %d", msg->id);
-      abort();
-    }
+    message_id = client_message->id;
   }
 
-  if (msg_size <= 0) {
-    return msg_size;
+  if (message_size <= 0) {
+    return message_size;
   }
 
-  msg_size += min_size;
+  message_size += min_size;
 
-  memcpy(buffer, &msg_size, sizeof(msg_size));
-  int offset = sizeof(msg_size);
-
-  memcpy(buffer + offset, &msg->id, sizeof(msg->id));
-
-  return msg_size;
+  memcpy(buffer, &message_size, sizeof(message_size));
+  memcpy(buffer + sizeof(message_size), &message_id, sizeof(message_id));
+  return message_size;
 }
 
-int fill_client_message(const struct ClientMsg* msg, char* buffer, size_t size) {
-  int msg_size = 0;
-  int min_size = sizeof(int) + sizeof(short);
+int client_message_write(const ClientMessage* message, char* buffer, size_t size) {
+  return write_message(message, buffer, size, false);
+}
 
-  if (size < min_size) {
-    return NOT_ENOUGH_DATA;
-  }
-
-  switch (msg->id) {
-    case CREATE_GAME_SESSION: {
-      msg_size = fill_create_session(&msg->create_game_session, buffer + min_size, size - min_size);
-      break;
-    }
-    case CONNECT_TO_SESSION: {
-      msg_size = fill_connect_to_session(&msg->connect_to_session, buffer + min_size, size - min_size);
-      break;
-    }
-    default: {
-      LOG_ERROR("Invalid message id is set: %d", msg->id);
-      abort();
-    }
-  }
-
-  if (msg_size <= 0) {
-    return msg_size;
-  }
-
-  msg_size += min_size;
-
-  memcpy(buffer, &msg_size, sizeof(msg_size));
-  int offset = sizeof(msg_size);
-
-  memcpy(buffer + offset, &msg->id, sizeof(msg->id));
-
-  return msg_size;
+int server_message_write(const ServerMessage* message, char* buffer, size_t size) {
+  return write_message(message, buffer, size, true);
 }

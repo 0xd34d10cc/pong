@@ -4,17 +4,19 @@
 #include "game.h"
 
 // Status that indicate status of inner server
-typedef enum SessionState {
+typedef enum {
   // 1 Player has connected, waiting for another
-  SESSION_CREATED,
+  SESSION_STATE_CREATED,
   // 2 Player has connected, waiting for start
-  SESSION_WAITING_FOR_PLAYER,
+  SESSION_STATE_WAITING_FOR_PLAYER,
   // Playing
-  SESSION_PLAYING,
+  SESSION_STATE_PLAYING,
   // Closed by any of players
-  SESSION_PLAYER1_WON,
-  SESSION_PLAYER2_WON
+  SESSION_STATE_PLAYER1_WON,
+  SESSION_STATE_PLAYER2_WON
 } SessionState;
+
+typedef struct NetworkSession NetworkSession;
 
 typedef struct Session {
   NetworkSession* player1;

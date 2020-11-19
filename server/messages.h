@@ -3,82 +3,89 @@
 
 #include <stddef.h>
 
-#define PWDEFAULTSIZE 100
+#define MAX_PASSWORD_SIZE 32
+#define MAX_MESSAGE_SIZE 1024
 
-// Status that we provide to end users about connection success or failure (SendStatus msg)
-typedef enum ClientStatus {
+// Status that we provide to end users about connection success or failure (SessionJoined message)
+typedef enum {
   // Successfully connected to the game session
-  CONNECTED = 0,
-  // Provided Wrong session ID
-  WRONG_SESSION_ID = 1,
-  // Provided Wrong password for existing session
-  WRONG_PASSWORD = 2,
+  CONNECTED,
+  // Provided wrong session ID
+  WRONG_SESSION_ID,
+  // Provided wrong password for existing session
+  WRONG_PASSWORD,
 
   // internal error means that something went wrong inside server
-  INTERNAL_ERROR = 3,
+  INTERNAL_ERROR,
 
-  CLIENT_STATUS_MAX = 4
-} ClientStatus;
+  SESSION_JOINED_STATUS_MAX
+} SessionJoinStatus;
 
-
-enum MessageType {
+typedef enum {
   // client messages
-  CREATE_GAME_SESSION = 0,
-  CONNECT_TO_SESSION,
+  CREATE_SESSION,
+  JOIN_SESSION,
 
   // server messages
-  SEND_SESSION,
-  SEND_STATUS,
-  NOTIFY_USER
-};
+  SESSION_CREATED,
+  SESSION_JOINED,
+} MessageType;
 
-typedef struct CreateGameSessionMsg {
-  int pw_size;
-  char pw[PWDEFAULTSIZE];
-} CreateGameSessionMsg;
+// Create a new game session
+typedef struct {
+  char password[MAX_PASSWORD_SIZE];
+} CreateSession;
 
-typedef struct SendSessionMsg {
+// Sent in response to CreateSession message
+typedef struct {
   int session_id;
-} SendSessionMsg;
+} SessionCreated;
 
-// TODO: rename to JoinSessionMsg
-typedef struct ConnectToSessionMsg {
+// Join existing game session
+typedef struct {
   int session_id;
-  int pw_size;
-  char pw[PWDEFAULTSIZE];
-} ConnectToSessionMsg;
+  char password[MAX_PASSWORD_SIZE];
+} JoinSession;
 
-typedef struct SendStatusMsg {
+// Sent in response to JoinSession message
+// and also to the owner of session
+typedef struct {
   int status_code;
-} SendStatusMsg;
-
-typedef struct NotifyUserMsg {
   char ipv4[16];
-  int status_code;
-} NotifyUserMsg;
+} SessionJoined;
 
-typedef struct ClientMsg {
-  short id;
+// Client message structure
+typedef struct {
+  unsigned short id;
   union {
-    CreateGameSessionMsg create_game_session;
-    ConnectToSessionMsg connect_to_session;
+    CreateSession create_session;
+    JoinSession join_session;
   };
-} ClientMsg ;
+} ClientMessage;
 
+
+// Server message structure
 typedef struct ServerMsg {
-  short id;
+  unsigned short id;
   union {
-    SendSessionMsg send_session;
-    SendStatusMsg send_status;
-    NotifyUserMsg notify_user;
+    SessionCreated session_created;
+    SessionJoined session_joined;
   };
-} ServerMsg;
+} ServerMessage;
 
-int parse_server_message(struct ServerMsg* msg, const char* buffer, size_t size);
-int parse_client_message(struct ClientMsg* msg, const char* buffer, size_t size);
+// Read message from the buffer
+// returns:
+// -1 i   n case of protocol violation
+// 0      if there is not enough data in buffer
+// n > 0  on success, where n is the number of bytes read from buffer
+int client_message_read(ClientMessage* message, const char* buffer, size_t size);
+int server_message_read(ServerMessage* message, const char* buffer, size_t size);
 
-int fill_server_message(const struct ServerMsg* msg, char* buffer, size_t size);
-int fill_client_message(const struct ClientMsg* msg, char* buffer, size_t size);
-
+// Write message to the buffer
+// returns:
+// 0      if there is not enough space in buffer
+// n > 0  on success, where n is the number of bytes written to buffer
+int client_message_write(const ClientMessage* message, char* buffer, size_t size);
+int server_message_write(const ServerMessage* message, char* buffer, size_t size);
 
 #endif // MESSAGES_H

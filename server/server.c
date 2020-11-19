@@ -112,26 +112,45 @@ static int server_accept(Server* server) {
       return -1;
     }
 
-    LOG_INFO("Client %d successfully connected", socket);
+    LOG_INFO("[%02d] Client successfully connected", socket);
   }
 
   return 0;
 }
 
-static void server_create_game_session(Server* server, NetworkSession* owner, CreateGameSessionMsg* message) {
-  LOG_INFO("Creating session with password %s", message->pw);
+static void server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
+  LOG_INFO("[%02d] Creating session with password %s", owner->socket, message->password);
   // TODO
 }
 
-static void server_connect_to_session(Server* server, NetworkSession* guest, ConnectToSessionMsg* message) {
+static void server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
+  LOG_INFO("[%02d] Joining session %d", guest->socket, message->session_id);
   // TODO
+}
+
+static int server_process_message(Server* server, NetworkSession* session, ClientMessage* message) {
+  if (session->game == NULL) {
+    switch (message->id) {
+      case CREATE_SESSION:
+        server_create_session(server, session, &message->create_session);
+        break;
+      case JOIN_SESSION:
+        server_join_session(server, session, &message->join_session);
+        break;
+      default:
+        LOG_WARN("[%02d] Unexpected first message: %d", session->socket, message->id);
+        return -1;
+    }
+  }
+
+  return 0;
 }
 
 static int server_read(Server* server, NetworkSession* session) {
   while (true) {
     int n = sizeof(session->input) - session->received;
     if (n == 0) {
-      LOG_ERROR("Client %d overflown the buffer capacity", session->socket);
+      LOG_ERROR("[%02d] Input buffer is out of capacty", session->socket);
       return -1;
     }
 
@@ -142,46 +161,36 @@ static int server_read(Server* server, NetworkSession* session) {
         break;
       }
 
-      LOG_WARN("Failed to receive data from socket: %s", strerror(errno));
+      LOG_WARN("[%02d] recv() failed: %s", session->socket, strerror(errno));
       return -1;
     }
 
     if (read == 0) {
-      LOG_INFO("Client %d disconnected", session->socket);
+      LOG_INFO("[%02d] Disconnected", session->socket);
       return -1;
     }
 
     session->received += read;
-    if (session->game == NULL) {
-      // attempt to parse CreateSession or JoinSession message
-      ClientMsg message;
-      int n = parse_client_message(&message, &session->input[0], session->received);
+
+    // parse messages
+    while (true) {
+      ClientMessage message;
+      int n = client_message_read(&message, &session->input[0], session->received);
       if (n < 0) {
         return n;
       }
 
-      if (n > 0) {
-        // TODO: use ring buffer
-        memmove(session->input, session->input + n, session->received - n);
-
-        switch (message.id) {
-          case CREATE_GAME_SESSION:
-            server_create_game_session(server, session, &message.create_game_session);
-            break;
-          case CONNECT_TO_SESSION:
-            server_connect_to_session(server, session, &message.connect_to_session);
-            break;
-          default:
-            LOG_WARN("Unexpected message type received: %d", message.id);
-            return -1;
-        }
+      if (n == 0) {
+        break;
       }
 
-      continue;
-    }
+      if (server_process_message(server, session, &message) == -1) {
+        return -1;
+      }
 
-    // process game logic
-    // TODO
+      memmove(session->input, session->input + n, session->received - n);
+      session->received -= n;
+    }
   }
 
   return 0;
