@@ -9,10 +9,14 @@
 typedef struct SDL_Window SDL_Window;
 
 enum {
+  // Local game session, without any networking
   LOCAL = 0,
+  // Disconnected (or didn't connected yet) from game server
+  DISCONNECTED,
+  // Connect is triggered, but we still waiting for connection to server
   AWAITING_CONNECTION,
-  CONNECTED,
-  DISCONNECTED
+  // Connected to the game server
+  CONNECTED
 };
 
 typedef struct ConnectionState {
