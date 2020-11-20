@@ -154,7 +154,7 @@ static int server_write(Server* server, NetworkSession* session) {
   int total = 0;
   while (total != session->to_send) {
     // TODO: flags
-    int sent = send(session->socket, session->output + total, session->to_send - total, 0);
+    int sent = send(session->socket, session->output + total, session->to_send - total, MSG_NOSIGNAL);
     if (sent == -1) {
       if (errno == EWOULDBLOCK) {
         break;
