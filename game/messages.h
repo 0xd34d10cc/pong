@@ -5,6 +5,9 @@
 
 #include "config.h"
 
+#define MAX_PASSWORD_SIZE 32
+
+
 typedef enum {
   // client messages
   CREATE_SESSION = 0x0,

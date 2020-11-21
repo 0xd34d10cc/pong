@@ -19,6 +19,23 @@ enum {
   CONNECTED
 };
 
+enum {
+  // Game session is not yet created
+  NOT_IN_SESSION = 0,
+  // Game session is created, but no second player here
+  CREATED,
+  // We joined to another session, or someone is joined to our session
+  JOINED,
+  // Playing pong with another player
+  PLAYING
+};
+
+typedef struct GameSession {
+  int id;
+  int state;
+  char opponent_ip[16];
+} GameSession;
+
 typedef struct ConnectionState {
   int state;
   char ip[16];
@@ -34,6 +51,7 @@ typedef struct Pong {
   Reactor reactor;
   ConnectionState connection_state;
   NetworkSession network_session;
+  GameSession game_session;
 } Pong;
 
 // returns 0 on success

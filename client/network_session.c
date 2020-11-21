@@ -46,7 +46,7 @@ int network_session_connect(NetworkSession* session, const char* host, unsigned 
 
   int res = connect(session->socket, (struct sockaddr*)&addr, sizeof(addr));
 
-  if (res != 0 && res != EINPROGRESS) {
+  if (res != 0 && errno != EINPROGRESS) {
     LOG_WARN("connect failed with error: %s", strerror(errno));
     return -1;
   }

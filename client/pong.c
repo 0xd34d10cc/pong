@@ -1,5 +1,6 @@
 #include "pong.h"
 #include "log.h"
+#include "messages.h"
 
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_events.h>
@@ -32,11 +33,15 @@ int pong_init(Pong* pong, const char* ip, unsigned short port) {
     return -1;
   }
 
-  pong->connection_state.state = LOCAL;
+  pong->connection_state.state = DISCONNECTED;
   strcpy(pong->connection_state.ip, ip);
   pong->connection_state.port = port;
 
   network_session_init(&pong->network_session);
+
+  pong->game_session.id = -1;
+  pong->game_session.state = NOT_IN_SESSION;
+  memset(pong->game_session.opponent_ip, 0, sizeof(pong->game_session.opponent_ip));
 
   reactor_register(&pong->reactor, pong->network_session.socket, &pong->network_session, 0);
   pong->running = true;
@@ -147,6 +152,23 @@ static int wait_connection(Pong* pong, int timeout_ms) {
   return 0;
 }
 
+static int pong_process_game_session(Pong* pong) {
+  ClientMessage msg = {0};
+  switch (pong->game_session.state) {
+    case NOT_IN_SESSION:
+      msg.id = CREATE_SESSION;
+      msg.create_session.password[0] = 0;
+
+      int res = client_message_write(&msg,
+                           pong->network_session.output,
+                           sizeof(pong->network_session.output) - pong->network_session.to_send);
+
+      break;
+
+  }
+  return 0;
+}
+
 static int pong_process_network(Pong* pong, int timeout_ms) {
   unsigned curr_time = SDL_GetTicks();
   unsigned deadline = curr_time + timeout_ms;
@@ -168,7 +190,9 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
         }
        break;
       case CONNECTED:
-        // TODO
+
+        //pong_process_game_session(pong);
+
         SDL_Delay(left);
         break;
     }
