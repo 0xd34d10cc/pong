@@ -1,7 +1,7 @@
 #ifndef POOL_H
 #define POOL_H
 
-#include "network_session.h"
+#define POOL_CAPACITY 4096
 
 typedef struct Pool {
   char buffer[POOL_CAPACITY];
@@ -17,6 +17,5 @@ void pool_release(Pool* pool, void* object);
 
 int pool_index(Pool* pool, void* object);
 int pool_size(Pool* pool);
-
 
 #endif // POOL_H

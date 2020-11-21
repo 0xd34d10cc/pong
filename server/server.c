@@ -3,271 +3,176 @@
 #include <errno.h>
 #include <string.h>
 
-#include <sys/epoll.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <fcntl.h>
 
-#include "network_session.h"
-#include "session.h"
-#include "messages.h"
 #include "log.h"
 #include "bool.h"
 
-// TODO: use accept4
-// TOOD: move this function to some common part
-static void set_nonblocking(int socket) {
-  int flags = fcntl(socket, F_GETFL, 0);
-  if (flags == -1) {
-    LOG_ERROR("Can't get flags from socket");
-    return;
-  }
 
-  flags |= O_NONBLOCK;
-  if (fcntl(socket, F_SETFL, flags) != 0) {
-    LOG_ERROR("Can't set flags for socket");
-  }
+static int connection_id(Connection* connection) {
+  return connection->stream.state.fd;
 }
 
 int server_init(Server* server, const char* ip, unsigned short port) {
-  struct sockaddr_in addr = { 0 };
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = inet_addr(ip);
-  int master = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (master == -1) {
-    LOG_ERROR("Failed to create master socket: %s", strerror(errno));
+  if (reactor_init(&server->reactor) == -1) {
+    LOG_ERROR("Failed to initialize reactor: %s", strerror(errno));
     return -1;
   }
 
-  set_nonblocking(master);
-  int flag = 1;
-  if (setsockopt(master, SOL_SOCKET, SO_REUSEADDR, (const void*)&flag, sizeof(int)) == -1) {
-    LOG_WARN("Failed to set SO_RESUEADDR socket option: %s", strerror(errno));
-  }
-
-  if (bind(master, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
-    LOG_ERROR("Failed to bind to the address: %s", strerror(errno));
-    close(master);
+  if (tcp_listener_init(&server->listener, &server->reactor, ip, port) == -1) {
+    LOG_ERROR("Failed to initialize tcp listener: %s", strerror(errno));
     return -1;
   }
 
-  if (listen(master, 20) == -1) {
-    LOG_ERROR("Call to listen() failed: %s", strerror(errno));
-    close(master);
-    return -1;
-  }
-
-  // NOTE: since Linux 2.6.8 size argument is ignored
-  // TODO: set EPOLLET
-  int poll = epoll_create(1);
-  if (poll == -1) {
-    LOG_ERROR("Failed to create epoll instance: %s", strerror(errno));
-    close(master);
-    return -1;
-  }
-
-  server->poll = poll;
-  server->master_socket = master;
-  pool_init(&server->connections, sizeof(NetworkSession));
-  pool_init(&server->sessions, sizeof(Session));
-
+  pool_init(&server->connections, sizeof(Connection));
+  pool_init(&server->lobbies, sizeof(Lobby));
   return 0;
 }
 
 void server_close(Server* server) {
-  close(server->master_socket);
+  tcp_listener_close(&server->listener);
 
-  // TODO: close each active network session
+  // TODO: close active connections
 
-  close(server->poll);
+  reactor_close(&server->reactor);
 }
 
 static int server_accept(Server* server) {
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof(addr);
   while (true) {
-    int socket = accept(server->master_socket, (struct sockaddr*)&addr, &addr_size);
-    if (socket == -1) {
-      if (errno == EWOULDBLOCK) {
-        break;
-      }
-
-      LOG_ERROR("accept() failed: %s", strerror(errno));
-      return -1;
-    }
-
-    set_nonblocking(socket);
-
-    NetworkSession* session = pool_aquire(&server->connections);
-    if (session == NULL) {
+    Connection* connection = pool_aquire(&server->connections);
+    if (connection == NULL) {
       LOG_WARN("Could not accept connection: the connection pool is full");
-      close(socket);
       return 0;
     }
 
-    network_session_init(session, socket, &addr);
-
-    struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.ptr = session;
-    if (epoll_ctl(server->poll, EPOLL_CTL_ADD, socket, &event) == -1) {
-      LOG_ERROR("Failed to add client socket to epoll: %s", strerror(errno));
-      return -1;
-    }
-    session->events |= IO_EVENT_READ;
-
-    LOG_INFO("[%02d] Client successfully connected", socket);
-  }
-
-  return 0;
-}
-
-static int server_register(Server* server, NetworkSession* session, unsigned events) {
-  if (session->events == events) {
-    return 0;
-  }
-
-  session->events = events;
-  unsigned poll_events = 0;
-  if (session->events &  IO_EVENT_READ) {
-    poll_events |= EPOLLIN;
-  }
-
-  if (session->events & IO_EVENT_WRITE) {
-    poll_events |= EPOLLOUT;
-  }
-
-  struct epoll_event event;
-  event.events = poll_events;
-  event.data.ptr = session;
-  if (epoll_ctl(server->poll, EPOLL_CTL_MOD, session->socket, &event) == -1) {
-    LOG_ERROR("[%02d] Failed to modify event subscription: %s", session->socket, strerror(errno));
-    return -1;
-  }
-
-  return 0;
-}
-
-static int server_write(Server* server, NetworkSession* session) {
-  int total = 0;
-  while (total != session->to_send) {
-    // TODO: flags
-    int sent = send(session->socket, session->output + total, session->to_send - total, MSG_NOSIGNAL);
-    if (sent == -1) {
-      if (errno == EWOULDBLOCK) {
-        break;
-      }
-
-      LOG_WARN("[%02d] send() failed: %s", session->socket, strerror(errno));
-      return -1;
+    int n = tcp_listener_accept(&server->listener, &connection->stream, &connection->address);
+    if (n <= 0) {
+      pool_release(&server->connections, connection);
+      return n;
     }
 
-    total += sent;
+    if (tcp_start_recv(&connection->stream) == -1) {
+      LOG_WARN("Failed to start read opertion on accepted socket: %s", strerror(errno));
+      tcp_close(&connection->stream);
+      pool_release(&server->connections, connection);
+    }
+
+    connection->lobby = NULL;
+    LOG_INFO("[%02d] Client successfully connected", connection_id(connection));
   }
-
-  memmove(session->output, session->output + total, session->to_send - total);
-  session->to_send -= total;
-
-  if (session->to_send == 0) {
-    // no more data to send, unregister from write events
-    return server_register(server, session, IO_EVENT_READ);
-  }
-
-  return 0;
 }
 
-static int server_send_message(Server* server, NetworkSession* session, ServerMessage* message) {
-  int n = server_message_write(message, session->output + session->to_send, sizeof(session->output) - session->to_send);
+static int server_send_message(Server* server, Connection* connection, ServerMessage* message) {
+  char buffer[MAX_MESSAGE_SIZE];
+  int n = server_message_write(message, buffer, sizeof(buffer));
   if (n == 0) {
-    LOG_WARN("[%02d] Failed to send message: outbut buffer is at capacity", session->socket);
+    LOG_WARN("[%02d] Failed to serialize message", connection_id(connection));
     return -1;
   }
 
-  session->to_send += n;
-  return server_register(server, session, IO_EVENT_READ | IO_EVENT_WRITE);
+  n = tcp_start_send(&connection->stream, buffer, n);
+  if (n == 0) {
+    LOG_WARN("[%02d] Failed to send message: output buffer is at capacity", connection_id(connection));
+    return -1;
+  }
+
+  if (n == -1) {
+    LOG_WARN("[%02d] Failed to send message: %s", strerror(errno));
+    return -1;
+  }
+
+  return 0;
 }
 
-static int server_send_error(Server* server, NetworkSession* session, int error) {
+static int server_send_error(Server* server, Connection* connection, int error) {
   ServerMessage message;
   message.id = ERROR_STATUS;
-  message.error_status.status = error;
-  return server_send_message(server, session, &message);
+  message.error.status = error;
+  return server_send_message(server, connection, &message);
 }
 
-static int server_create_session(Server* server, NetworkSession* owner, CreateSession* message) {
-  if (owner->game != NULL) {
-    int session_id = pool_index(&server->sessions, owner->game);
-    LOG_INFO("[%02d] Failed to create game session: client already in session #%d", owner->socket, session_id);
-    // TODO: disconnect from current session and create a new one instead
+static void lobby_init(Lobby* lobby, Connection* owner, const char* password) {
+  lobby->owner = owner;
+  lobby->guest = NULL;
+  strcpy(lobby->password, password);
+  // FIXME: unhardcode the board size
+  game_init(&lobby->game, 800, 600);
+}
+
+static int server_create_lobby(Server* server, Connection* owner, CreateLobby* message) {
+  if (owner->lobby != NULL) {
+    int lobby_id = pool_index(&server->lobbies, owner->lobby);
+    LOG_INFO("[%02d] Failed to create game lobby: client already in lobby #%d", connection_id(owner), lobby_id);
+    // TODO: disconnect from current lobby and create a new one instead
     return server_send_error(server, owner, INTERNAL_ERROR);
   }
 
-  Session* session = pool_aquire(&server->sessions);
-  if (session == NULL) {
-    LOG_ERROR("[%02d] Failed to create new session: session pool is at capacity", owner->socket);
+  Lobby* lobby = pool_aquire(&server->lobbies);
+  if (lobby == NULL) {
+    LOG_ERROR("[%02d] Failed to create new lobby: out of memory", connection_id(owner));
     return server_send_error(server, owner, INTERNAL_ERROR);
   }
 
-  session_init(session, owner, message->password);
-  owner->game = session;
+  lobby_init(lobby, owner, message->password);
+  owner->lobby = lobby;
 
-  int session_id = pool_index(&server->sessions, session);
-  LOG_INFO("[%02d] Created session #%d with password \"%s\"", owner->socket, session_id, message->password);
+  int lobby_id = pool_index(&server->lobbies, lobby);
+  LOG_INFO("[%02d] Created lobby #%d with password \"%s\"", connection_id(owner), lobby_id, lobby->password);
 
   ServerMessage response;
-  response.id = SESSION_CREATED;
-  response.session_created.session_id = session_id;
+  response.id = LOBBY_CREATED;
+  response.lobby_created.id = lobby_id;
   return server_send_message(server, owner, &response);
 }
 
-static int server_join_session(Server* server, NetworkSession* guest, JoinSession* message) {
-  int session_id = message->session_id;
-  Session* session = pool_at(&server->sessions, session_id);
-  if (session == NULL) {
-    LOG_WARN("[%02d] Tried to join to invalid session #%d", guest->socket, session_id);
-    return server_send_error(server, guest, INVALID_SESSION_ID);
+static int server_join_lobby(Server* server, Connection* guest, JoinLobby* message) {
+  int lobby_id = message->id;
+  Lobby* lobby = pool_at(&server->lobbies, lobby_id);
+  if (lobby == NULL) {
+    LOG_WARN("[%02d] Tried to join to invalid lobby #%d", connection_id(guest), lobby_id);
+    return server_send_error(server, guest, INVALID_LOBBY_ID);
   }
 
-  if (session->player2 != NULL || session->player1 == guest) {
-    LOG_WARN("[%02d] Failed to join session #%d: lobby is full", guest->socket, session_id);
-    return server_send_error(server, guest, SESSION_IS_FULL);
+  if (lobby->guest != NULL || lobby->owner == guest) {
+    LOG_WARN("[%02d] Failed to join lobby #%d: lobby is full", connection_id(guest), lobby_id);
+    return server_send_error(server, guest, LOBBY_IS_FULL);
   }
 
-  if (strcmp(session->password, message->password)) {
-    LOG_WARN("[%02d] Failed to join session #%d: invalid password", guest->socket, session_id);
+  if (strcmp(lobby->password, message->password)) {
+    LOG_WARN("[%02d] Failed to join lobby #%d: invalid password", connection_id(guest), lobby_id);
     return server_send_error(server, guest, INVALID_PASSWORD);
   }
 
-  session->player2 = guest;
-  guest->game = session;
+  lobby->guest = guest;
+  guest->lobby = lobby;
 
-  NetworkSession* owner = session->player1;
+  Connection* owner = lobby->owner;
 
   ServerMessage response;
-  response.id = SESSION_JOINED;
-  strcpy(response.session_joined.ipv4, inet_ntoa(owner->address.sin_addr));
+  response.id = LOBBY_JOINED;
+  strcpy(response.lobby_joined.ipv4, inet_ntoa(owner->address.sin_addr));
   if (server_send_message(server, guest, &response) < 0) {
     return -1;
   }
 
-  strcpy(response.session_joined.ipv4, inet_ntoa(guest->address.sin_addr));
-  LOG_INFO("[%02d] Joined session #%d", guest->socket, session_id);
+  strcpy(response.lobby_joined.ipv4, inet_ntoa(guest->address.sin_addr));
+  LOG_INFO("[%02d] Joined lobby #%d", connection_id(guest), lobby_id);
   return server_send_message(server, owner, &response);
 }
 
-static int server_process_message(Server* server, NetworkSession* session, ClientMessage* message) {
+static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
   int status = 0;
   switch (message->id) {
-    case CREATE_SESSION:
-      status = server_create_session(server, session, &message->create_session);
+    case CREATE_LOBBY:
+      status = server_create_lobby(server, connection, &message->create_lobby);
       break;
-    case JOIN_SESSION:
-      status = server_join_session(server, session, &message->join_session);
+    case JOIN_LOBBY:
+      status = server_join_lobby(server, connection, &message->join_lobby);
       break;
     default:
-      LOG_WARN("[%02d] Unexpected message: %d", session->socket, message->id);
+      LOG_WARN("[%02d] Unexpected message: %d", connection_id(connection), message->id);
       status = -1;
       break;
   }
@@ -275,65 +180,59 @@ static int server_process_message(Server* server, NetworkSession* session, Clien
   return status;
 }
 
-static int server_read(Server* server, NetworkSession* session) {
+static int server_read(Server* server, Connection* connection) {
   while (true) {
-    int n = sizeof(session->input) - session->received;
+    int n = tcp_recv(&connection->stream);
     if (n == 0) {
-      LOG_ERROR("[%02d] Input buffer is out of capacty", session->socket);
       return -1;
     }
 
-    // TODO: flags
-    int read = recv(session->socket, session->input, n, 0);
-    if (read == -1) {
-      if (errno == EWOULDBLOCK) {
-        break;
-      }
-
-      LOG_WARN("[%02d] recv() failed: %s", session->socket, strerror(errno));
+    if (n < 0) {
+      LOG_WARN("[%02d] Read operation failed: %s", connection_id(connection), strerror(errno));
       return -1;
     }
-
-    if (read == 0) {
-      return -1;
-    }
-
-    session->received += read;
 
     // parse messages
+    int total = 0;
     while (true) {
       ClientMessage message;
-      int n = client_message_read(&message, &session->input[0], session->received);
+      int n = client_message_read(&message, connection->stream.input + total, connection->stream.received - total);
       if (n < 0) {
-        return n;
+        LOG_WARN("[%02d] Client sent invalid message", connection_id(connection));
+        return -1;
       }
 
       if (n == 0) {
         break;
       }
 
-      if (server_process_message(server, session, &message) == -1) {
+      if (server_process_message(server, connection, &message) == -1) {
         return -1;
       }
 
-      memmove(session->input, session->input + n, session->received - n);
-      session->received -= n;
+      total += n;
+    }
+
+    bool more = connection->stream.received == sizeof(connection->stream.input);
+    tcp_consume(&connection->stream, total);
+
+    if (!more) {
+      break;
     }
   }
 
   return 0;
 }
 
-
-static int server_event(Server* server, NetworkSession* session, unsigned int event) {
-  if (event & EPOLLIN) {
-    if (server_read(server, session) < 0) {
+static int server_event(Server* server, Connection* connection, unsigned int event) {
+  if (event & IO_EVENT_READ) {
+    if (server_read(server, connection) < 0) {
       return -1;
     }
   }
 
-  if (event & EPOLLOUT) {
-    if (server_write(server, session) < 0) {
+  if (event & IO_EVENT_WRITE) {
+    if (tcp_send(&connection->stream) < 0) {
       return -1;
     }
   }
@@ -341,72 +240,66 @@ static int server_event(Server* server, NetworkSession* session, unsigned int ev
   return 0;
 }
 
-static void server_disconnect(Server* server, NetworkSession* session) {
-  if (epoll_ctl(server->poll, EPOLL_CTL_DEL, session->socket, NULL) == -1) {
-    LOG_ERROR("Failed to remove socket from epoll: %s", strerror(errno));
-  }
+static void server_disconnect(Server* server, Connection* connection) {
+  if (connection->lobby) {
+    int lobby_id = pool_index(&server->lobbies, connection->lobby);
 
-  if (session->game) {
-    int session_id = pool_index(&server->sessions, session->game);
-
-    NetworkSession* opponent = NULL;
-    if (session == session->game->player1) {
-      opponent = session->game->player2;
+    Connection* opponent = NULL;
+    if (connection == connection->lobby->owner) {
+      opponent = connection->lobby->guest;
     }
-    else if (session == session->game->player2) {
-      opponent = session->game->player1;
+    else if (connection == connection->lobby->guest) {
+      opponent = connection->lobby->owner;
     }
     else {
-      LOG_ERROR("[%02d] Inconsistent state: player is in game session #%d, but he isn't one of the players",
-                session->socket, session_id);
+      LOG_ERROR("[%02d] Inconsistent state: player is in game lobby #%d, but he isn't one of the players",
+                connection_id(connection), lobby_id);
     }
 
     if (opponent) {
-      opponent->game = NULL;
+      opponent->lobby = NULL;
       if (server_send_error(server, opponent, OPPONENT_DISCONNECTED) < 0) {
+        LOG_WARN("[%02d] Failed to notify about opponent disconnection");
         server_disconnect(server, opponent);
       }
     }
 
-    LOG_INFO("Session #%d closed", session_id);
-    session_close(session->game);
-    pool_release(&server->sessions, session->game);
+    LOG_INFO("Lobby #%d closed", lobby_id);
+    pool_release(&server->lobbies, connection->lobby);
   }
 
-  LOG_INFO("[%02d] Disconnected", session->socket);
-  network_session_close(session);
-  pool_release(&server->connections, session);
+  LOG_INFO("[%02d] Disconnected", connection_id(connection));
+  tcp_close(&connection->stream);
+  pool_release(&server->connections, connection);
 }
 
 static const int MAX_EVENTS = 64;
 
 int server_run(Server* server) {
-  struct epoll_event event;
-  event.events = EPOLLIN;
-  event.data.ptr = NULL;
-  if (epoll_ctl(server->poll, EPOLL_CTL_ADD, server->master_socket, &event) == -1) {
-    LOG_ERROR("Failed to add master socket to epoll: %s", strerror(errno));
+  if (tcp_listener_start_accept(&server->listener) == -1) {
+    LOG_ERROR("Failed to start accept() operatioon: %s", strerror(errno));
     return -1;
   }
 
-  struct epoll_event events[MAX_EVENTS];
+  IOEvent events[MAX_EVENTS];
   while (true) {
-    int n_events = epoll_wait(server->poll, events, MAX_EVENTS, -1);
+    int n_events = reactor_poll(&server->reactor, events, MAX_EVENTS, -1);
     if (n_events == -1) {
-      LOG_ERROR("epoll_wait() failed: %s", strerror(errno));
+      LOG_ERROR("reactor_poll() failed: %s", strerror(errno));
       return -1;
     }
 
     for (int i = 0; i < n_events;  ++i) {
-      NetworkSession* session = events[i].data.ptr;
-      if (session == NULL) {
+      Evented* object = events[i].object;
+      if (object == &server->listener.state) {
         if (server_accept(server) < 0) {
           return -1;
         }
       }
       else {
-        if (server_event(server, session, events[i].events) < 0) {
-          server_disconnect(server, session);
+        Connection* connection = (Connection*)object;
+        if (server_event(server, connection, events[i].events) < 0) {
+          server_disconnect(server, connection);
         }
       }
     }

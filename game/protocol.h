@@ -3,52 +3,54 @@
 
 #include <stddef.h>
 
-#include "config.h"
-
+#define MAX_MESSAGE_SIZE 256
 #define MAX_PASSWORD_SIZE 32
 
 
 typedef enum {
+  ERROR_STATUS = 0xff,
+
   // client messages
-  CREATE_SESSION = 0x0,
-  JOIN_SESSION = 0x1,
+  CREATE_LOBBY = 0x0,
+  JOIN_LOBBY = 0x1,
 
   // server messages
-  ERROR_STATUS = 0xff,
-  SESSION_CREATED = 0x2,
-  SESSION_JOINED = 0x3,
+  LOBBY_CREATED = 0x2,
+  LOBBY_JOINED = 0x3,
 } MessageType;
 
 
-// Create a new game session
+// Create a new game lobby
 typedef struct {
   char password[MAX_PASSWORD_SIZE];
-} CreateSession;
+} CreateLobby;
 
 // Sent in response to CreateSession message
 typedef struct {
-  int session_id;
-} SessionCreated;
+  // Identifier of the lobby
+  int id;
+} LobbyCreated;
 
-// Join existing game session
+// Join existing lobby
 typedef struct {
-  int session_id;
+  int id;
   char password[MAX_PASSWORD_SIZE];
-} JoinSession;
+} JoinLobby;
 
-// Sent in response to JoinSession message
-// and also to the owner of game lobby
+// Sent in response to JoinLobby message
+// and also to the owner of game lobby when someone joins
 typedef struct {
+  // ip address of opponent
   char ipv4[16];
-} SessionJoined;
+} LobbyJoined;
 
 // Error statuses
 enum {
   // There are already 2 players in this session
-  SESSION_IS_FULL,
+  LOBBY_IS_FULL,
 
-  // Provided session id is invalid
-  INVALID_SESSION_ID,
+  // Provided lobby id is invalid
+  INVALID_LOBBY_ID,
 
   // Provided password is invalid
   INVALID_PASSWORD,
@@ -71,8 +73,8 @@ typedef struct {
 typedef struct {
   unsigned short id;
   union {
-    CreateSession create_session;
-    JoinSession join_session;
+    CreateLobby create_lobby;
+    JoinLobby join_lobby;
   };
 } ClientMessage;
 
@@ -80,9 +82,9 @@ typedef struct {
 typedef struct ServerMsg {
   unsigned short id;
   union {
-    SessionCreated session_created;
-    SessionJoined session_joined;
-    ErrorStatus error_status;
+    LobbyCreated lobby_created;
+    LobbyJoined lobby_joined;
+    ErrorStatus error;
   };
 } ServerMessage;
 
