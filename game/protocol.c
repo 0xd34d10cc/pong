@@ -112,6 +112,7 @@ int server_message_read(ServerMessage* message, const char* data, size_t size) {
       return 0;                        \
     }                                  \
     memcpy(data + offset, field, len); \
+    offset += len;                     \
   } while (0)
 
 

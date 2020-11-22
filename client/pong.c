@@ -1,11 +1,14 @@
 #include "pong.h"
 #include "log.h"
 #include "game/protocol.h"
+#include "bool.h"
 
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_timer.h>
 
+
+#define RECONNECT_DELAY 1000 * 15
 
 int pong_init(Pong* pong, const char* ip, unsigned short port) {
   pong->running = false;
@@ -90,6 +93,136 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
+static int process_server_message(Pong* pong, ServerMessage* message, int timeout) {
+  int res = 0;
+
+  switch (message->id) {
+    case LOBBY_CREATED:
+      pong->game_session.id = message->lobby_created.id;
+      pong->game_session.state = CREATED;
+      LOG_INFO("Game session with id: %d is received", pong->game_session.id);
+      break;
+
+    case LOBBY_JOINED:
+      strcpy(pong->game_session.opponent_ip, message->lobby_joined.ipv4);
+      LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
+      break;
+  }
+
+  return res;
+}
+
+static int process_read(Pong* pong, int timeout) {
+  while (true) {
+    int n = tcp_recv(&pong->tcp_stream);
+
+    if (n == 0) {
+      return -1;
+    }
+
+    if (n < 0) {
+      LOG_WARN("recv failed: %s", strerror(errno));
+      return -1;
+    }
+
+    bool more_to_read = false;
+    int offset = 0;
+    while (true) {
+      ServerMessage message;
+
+      int msg_size = server_message_read(&message, pong->tcp_stream.input + offset,
+          pong->tcp_stream.received - offset);
+
+      if (msg_size < 0) {
+        LOG_WARN("Invalid message received from server");
+        return -1;
+      }
+
+      if (msg_size == 0) {
+        LOG_INFO("Not enough data to parse message");
+        break;
+      }
+
+      process_server_message(pong, &message, timeout);
+
+      offset += msg_size;
+
+      if (offset == pong->tcp_stream.received) {
+        break;
+      }
+    }
+
+    tcp_consume(&pong->tcp_stream, offset);
+
+    if (pong->tcp_stream.received == sizeof(pong->tcp_stream.input)) {
+      more_to_read = true;
+    }
+
+    if (!more_to_read) {
+      break;
+    }
+  }
+
+  return 0;
+}
+
+static int process_lobby(Pong* pong, int timeout) {
+  ClientMessage msg = {0};
+  char buf[MAX_MESSAGE_SIZE];
+
+  switch (pong->game_session.state) {
+    case NOT_IN_LOBBY:
+      msg.id = CREATE_LOBBY;
+      msg.create_lobby.password[0] = '\0';
+
+      int n = client_message_write(&msg, buf, sizeof(buf));
+
+      if (n == 0) {
+        return -1;
+      }
+
+      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+
+      if (send_res <= 0) {
+        LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
+        return -1;
+      }
+
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      break;
+
+    case WAITING_FOR_LOBBY: {
+
+      IOEvent event;
+      int n_events = reactor_poll(&pong->reactor, &event, 1, timeout);
+      if (n_events == -1) {
+        LOG_ERROR("reactor_poll failed: %s", strerror(errno));
+        return -1;
+      }
+
+      if (n_events == 0) {
+        return 0;
+      }
+
+      if (event.events & IO_EVENT_READ) {
+        process_read(pong, timeout);
+      }
+
+      if (event.events & IO_EVENT_WRITE) {
+        if(tcp_send(&pong->tcp_stream) == -1) {
+          LOG_WARN("tcp_send failed: %s", strerror(errno));
+          return -1;
+        }
+      }
+
+      break;
+    }
+
+  }
+
+  return 0;
+}
+
 static int pong_process_network(Pong* pong, int timeout_ms) {
   unsigned now = SDL_GetTicks();
   unsigned deadline = now + timeout_ms;
@@ -98,7 +231,9 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
     unsigned time_left = deadline - now;
     switch (pong->connection_state.state) {
       case DISCONNECTED:
-        if (tcp_start_connect(&pong->tcp_stream, pong->connection_state.ip, pong->connection_state.port) == -1) {
+        if (tcp_start_connect(&pong->tcp_stream,
+                              pong->connection_state.ip,
+                              pong->connection_state.port) == -1) {
           LOG_ERROR("Failed to start connection: %s", strerror(errno));
           return -1;
         }
@@ -117,9 +252,12 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
           reactor_update(&pong->reactor, &pong->tcp_stream.state, 0);
           int error = tcp_connect(&pong->tcp_stream);
           if (error == 0) {
-            LOG_INFO("Successfully connected to %s:%d", pong->connection_state.ip, pong->connection_state.port);
+            LOG_INFO("Successfully connected to %s:%d",
+                     pong->connection_state.ip,
+                     pong->connection_state.port);
             pong->connection_state.state = CONNECTED;
             tcp_start_recv(&pong->tcp_stream);
+
           }
           else {
             LOG_ERROR("Failed to connect to %s:%d: %s",
@@ -127,12 +265,16 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
                        pong->connection_state.port,
                        strerror(error));
             pong->connection_state.state = DISCONNECTED;
-            // TODO: add delay before another attempt to reconnect
+
+            // TODO: Should be only in case of NONLOCAL game
+            SDL_Delay(RECONNECT_DELAY);
           }
         }
         break;
       }
       case CONNECTED:
+
+        process_lobby(pong, time_left);
         SDL_Delay(time_left);
         break;
     }

@@ -22,6 +22,8 @@ enum {
 enum {
   // Have not joined/created lobby yet
   NOT_IN_LOBBY = 0,
+  // Lobby create message is sent, but no answer yet
+  WAITING_FOR_LOBBY,
   // Game session is created, but no second player here
   CREATED,
   // We joined to another session, or someone is joined to our session
