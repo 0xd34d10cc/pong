@@ -57,6 +57,7 @@ static int server_accept(Server* server) {
       LOG_WARN("Failed to start read opertion on accepted socket: %s", strerror(errno));
       tcp_close(&connection->stream);
       pool_release(&server->connections, connection);
+      return -1;
     }
 
     connection->lobby = NULL;
