@@ -8,6 +8,21 @@
 
 typedef struct SDL_Window SDL_Window;
 
+typedef enum GameMode {
+  LOCAL_GAME = 0,
+  REMOTE_NEW_GAME,
+  REMOTE_CONNECT_GAME
+} GameMode;
+
+typedef struct LaunchParams {
+  // TODO: find max password size
+  char password[100];
+  int port;
+  char ip[16];
+  int game_mode;
+  int session_id;
+} LaunchParams;
+
 enum {
   // Local game session, without any networking
   LOCAL = 0,
@@ -64,7 +79,7 @@ typedef struct Pong {
 } Pong;
 
 // returns 0 on success
-int pong_init(Pong* pong, const char* ip, unsigned short port);
+int pong_init(Pong* pong, const char* ip, unsigned short port, GameMode mode);
 void pong_run(Pong* pong);
 void pong_close(Pong* pong);
 
