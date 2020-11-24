@@ -10,7 +10,7 @@
 
 #define RECONNECT_DELAY 1000 * 15
 
-int pong_init(Pong* pong, const char* ip, unsigned short port, GameMode mode) {
+int pong_init(Pong* pong, LaunchParams* params) {
   pong->running = false;
   pong->window = SDL_CreateWindow(
       "pong",
@@ -37,14 +37,30 @@ int pong_init(Pong* pong, const char* ip, unsigned short port, GameMode mode) {
     return -1;
   }
 
+
   pong->connection_state.state = DISCONNECTED;
-  strcpy(pong->connection_state.ip, ip);
-  pong->connection_state.port = port;
+  strcpy(pong->connection_state.ip, params->ip);
+  pong->connection_state.port = params->port;
 
   tcp_init(&pong->tcp_stream, &pong->reactor);
 
-  pong->game_session.id = -1;
-  pong->game_session.state = mode == LOCAL_GAME ? LOCAL : NOT_IN_LOBBY;
+  pong->game_session.id = params->session_id;
+  strcpy(pong->game_session.password, params->password);
+  // TODO: pass game session state instead of game mode
+  switch (params->game_mode) {
+    case LOCAL_GAME:
+      pong->game_session.state = LOCAL;
+      break;
+
+    case REMOTE_NEW_GAME:
+      pong->game_session.state = NOT_IN_LOBBY;
+      break;
+
+    case REMOTE_CONNECT_GAME:
+      pong->game_session.state = WANT_TO_JOIN;
+      break;
+  }
+
   pong->game_session.opponent_ip[0] = '\0';
   return 0;
 }

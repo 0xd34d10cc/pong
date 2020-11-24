@@ -35,8 +35,10 @@ enum {
 };
 
 enum {
-  // Have not joined/created lobby yet
+  // Have not created lobby yet
   NOT_IN_LOBBY = 0,
+  // Have not joined lobby yet
+  WANT_TO_JOIN,
   // Lobby create message is sent, but no answer yet
   WAITING_FOR_LOBBY,
   // Game session is created, but no second player here
@@ -51,6 +53,7 @@ typedef struct GameSession {
   int id;
   int state;
   char opponent_ip[16];
+  char password[100];
 } GameSession;
 
 typedef struct ConnectionState {
@@ -79,7 +82,7 @@ typedef struct Pong {
 } Pong;
 
 // returns 0 on success
-int pong_init(Pong* pong, const char* ip, unsigned short port, GameMode mode);
+int pong_init(Pong* pong, LaunchParams* params);
 void pong_run(Pong* pong);
 void pong_close(Pong* pong);
 

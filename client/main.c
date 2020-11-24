@@ -105,47 +105,90 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
     return argc;
   }
 
-  return argc;
+  // ./pong connect host port id
+  if (argc == 5) {
+    if (strcmp(argv[1], "connect") != 0) {
+      LOG_ERROR("Invalid combination of params");
+      return -1;
+    }
+
+
+    if (strlen(argv[2]) > 16) {
+      LOG_ERROR("%s is not valid host", argv[2]);
+      return -1;
+    }
+
+    strcpy(params->ip, argv[2]);
+
+    int port = atoi(argv[3]);
+    if (port == 0) {
+      LOG_ERROR("%s is not valid port", argv[3]);
+      return -1;
+    }
+
+    params->port = port;
+
+    int id = atoi(argv[4]);
+    if (id < 0) {
+      LOG_ERROR("id should be at least 0");
+      return -1;
+    }
+
+    params->session_id = id;
+    return argc;
+  }
+
+  // ./connect host port id password
+  if (argc == 6) {
+    if (strcmp(argv[1], "connect") != 0) {
+      LOG_ERROR("Invalid combination of params");
+      return -1;
+    }
+
+
+    if (strlen(argv[2]) > 16) {
+      LOG_ERROR("%s is not valid host", argv[2]);
+      return -1;
+    }
+
+    strcpy(params->ip, argv[2]);
+
+    int port = atoi(argv[3]);
+
+    if (port == 0) {
+      LOG_ERROR("%s is not valid port", argv[3]);
+      return -1;
+    }
+
+    params->port = port;
+
+    int id = atoi(argv[4]);
+    if (id < 0) {
+      LOG_ERROR("id should be at least 0");
+      return -1;
+    }
+
+
+    params->session_id = id;
+    strcpy(params->password, argv[5]);
+    return argc;
+  }
+
+  LOG_ERROR("invalid arguments");
+  return -1;
 
 }
 
 int main(int argc, char* argv[]) {
-  if (argc > 4) {
-    LOG_ERROR("Unexpected number of arguments: got %d, expected less than 3", argc - 1);
+  LaunchParams params = {0};
+
+  int res = fill_params(argc, argv, &params);
+
+  if (res == 0) {
+    return EXIT_SUCCESS;
+  }
+  if (res == -1) {
     return EXIT_FAILURE;
-  }
-
-  const char* host = argc < 2 ? "127.0.0.1" : argv[1];
-  if (strlen(host) > 16) {
-    LOG_ERROR("Invalid ip address: %s", host);
-    return EXIT_FAILURE;
-  }
-
-  unsigned short port = 1337;
-  if (argc == 3) {
-    port = (unsigned short)atoi(argv[2]);
-
-    if (port == 0) {
-      LOG_ERROR("%s is not a valid port number", argv[2]);
-      return EXIT_FAILURE;
-    }
-  }
-
-  GameMode mode = LOCAL_GAME;
-
-  if (argc == 4) {
-    if (strcmp(argv[3], "local") == 0) {
-      mode = LOCAL_GAME;
-    } else
-    if (strcmp(argv[3], "connect") == 0) {
-      mode = REMOTE_CONNECT_GAME;
-    } else
-    if (strcmp(argv[3], "remote") == 0) {
-      mode = REMOTE_NEW_GAME;
-    } else {
-      LOG_ERROR("Can't get game mode from string: %s", argv[4]);
-      return EXIT_FAILURE;
-    }
   }
 
 #ifdef _WIN32
@@ -168,7 +211,7 @@ int main(int argc, char* argv[]) {
            SDL_GetCPUCount(), SDL_GetSystemRAM());
 
   Pong pong;
-  if (pong_init(&pong, host, port, mode)) {
+  if (pong_init(&pong, &params)) {
     return EXIT_FAILURE;
   }
 
