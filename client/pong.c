@@ -116,13 +116,13 @@ static int process_server_message(Pong* pong, ServerMessage* message, int timeou
   switch (message->id) {
     case LOBBY_CREATED:
       pong->game_session.id = message->lobby_created.id;
-      pong->game_session.state = CREATED;
+      pong->game_session.state = WAITING_FOR_LOBBY;
       LOG_INFO("Game session with id: %d is received", pong->game_session.id);
       break;
 
     case LOBBY_JOINED:
       strcpy(pong->game_session.opponent_ip, message->lobby_joined.ipv4);
-      pong->game_session.state = JOINED;
+      pong->game_session.state = WAITING_FOR_LOBBY;
       LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
       break;
   }
@@ -135,6 +135,7 @@ static int process_read(Pong* pong, int timeout) {
     int n = tcp_recv(&pong->tcp_stream);
 
     if (n == 0) {
+      LOG_WARN("disconnect received");
       return -1;
     }
 
@@ -231,7 +232,6 @@ static int process_lobby(Pong* pong, int timeout) {
 
     }
     case WAITING_FOR_LOBBY: {
-
       IOEvent event;
       int n_events = reactor_poll(&pong->reactor, &event, 1, timeout);
       if (n_events == -1) {
@@ -244,7 +244,10 @@ static int process_lobby(Pong* pong, int timeout) {
       }
 
       if (event.events & IO_EVENT_READ) {
-        process_read(pong, timeout);
+        if (process_read(pong, timeout) == -1) {
+          LOG_ERROR("process read failed");
+          return -1;
+        }
       }
 
       if (event.events & IO_EVENT_WRITE) {
@@ -257,6 +260,8 @@ static int process_lobby(Pong* pong, int timeout) {
       break;
     }
 
+    default:
+      PANIC("UNHANDLED GAME SESSION STATE: %d", pong->game_session.state);
   }
 
   return 0;
