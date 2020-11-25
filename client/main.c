@@ -10,6 +10,8 @@
 
 #define ERR_MESSAGE_SIZE 100
 
+
+// TODO: for god sake, don't even try to use atoi more
 // returns -1 in case of error and fill err_msg
 // returns 0 in case of no error, but no further processing is needed
 // returns number of params otherwise
@@ -65,11 +67,6 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
       params->game_mode = REMOTE_CONNECT_GAME;
       int session_id =  atoi(argv[2]);
 
-      // TODO: what if we write 0 as port?
-      if (session_id == 0) {
-        LOG_ERROR("%s is not a valid session_id", argv[2]);
-        return -1;
-      }
       params->session_id = session_id;
       return argc;
     }
@@ -81,37 +78,46 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
 
   // Might be in several cases:
   // ./pong create host port // create no password on host
+  // ./pong connect id pw // connect to existing session with pw
   if (argc == 4) {
-    if (strcmp(argv[1], "create") != 0) {
-      LOG_ERROR("invalid combination of params");
-      return -1;
+    if (strcmp(argv[1], "create") == 0) {
+
+      if (strlen(argv[2]) > 16) {
+        LOG_ERROR("%s is not valid host", argv[2]);
+        return -1;
+      }
+
+      strcpy(params->ip, argv[2]);
+
+      int port = atoi(argv[3]);
+
+      if (port == 0) {
+        LOG_ERROR("%s is not valid port", argv[3]);
+        return -1;
+      }
+
+      params->port = port;
+      return argc;
     }
 
-    if (strlen(argv[2]) > 16) {
-      LOG_ERROR("%s is not valid host", argv[2]);
-      return -1;
+    if (strcmp(argv[1], "connect") == 0) {
+
+      int id = atoi(argv[2]);
+
+      params->session_id = id;
+      strcpy(params->password, argv[3]);
+      params->game_mode = REMOTE_CONNECT_GAME;
+      return argc;
     }
-
-    strcpy(params->ip, argv[2]);
-
-    int port = atoi(argv[3]);
-
-    if (port == 0) {
-      LOG_ERROR("%s is not valid port", argv[3]);
-      return -1;
-    }
-
-    params->port = port;
-    return argc;
   }
 
   // ./pong connect host port id
+  // ./pong connect idp
   if (argc == 5) {
     if (strcmp(argv[1], "connect") != 0) {
       LOG_ERROR("Invalid combination of params");
       return -1;
     }
-
 
     if (strlen(argv[2]) > 16) {
       LOG_ERROR("%s is not valid host", argv[2]);

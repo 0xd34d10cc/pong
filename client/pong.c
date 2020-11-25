@@ -8,7 +8,7 @@
 #include <SDL2/SDL_timer.h>
 
 
-#define RECONNECT_DELAY 1000 * 15
+#define RECONNECT_DELAY 1000 * 3
 
 int pong_init(Pong* pong, LaunchParams* params) {
   pong->running = false;
@@ -37,7 +37,6 @@ int pong_init(Pong* pong, LaunchParams* params) {
     return -1;
   }
 
-
   pong->connection_state.state = DISCONNECTED;
   strcpy(pong->connection_state.ip, params->ip);
   pong->connection_state.port = params->port;
@@ -49,7 +48,9 @@ int pong_init(Pong* pong, LaunchParams* params) {
   // TODO: pass game session state instead of game mode
   switch (params->game_mode) {
     case LOCAL_GAME:
+      // TODO: We have two LOCAL in different enum, could be fuckup
       pong->game_session.state = LOCAL;
+      pong->connection_state.state = LOCAL;
       break;
 
     case REMOTE_NEW_GAME:
@@ -121,6 +122,7 @@ static int process_server_message(Pong* pong, ServerMessage* message, int timeou
 
     case LOBBY_JOINED:
       strcpy(pong->game_session.opponent_ip, message->lobby_joined.ipv4);
+      pong->game_session.state = JOINED;
       LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
       break;
   }
@@ -189,7 +191,7 @@ static int process_lobby(Pong* pong, int timeout) {
   switch (pong->game_session.state) {
     case NOT_IN_LOBBY:
       msg.id = CREATE_LOBBY;
-      msg.create_lobby.password[0] = '\0';
+      strcpy(msg.create_lobby.password, pong->game_session.password);
 
       int n = client_message_write(&msg, buf, sizeof(buf));
 
@@ -207,6 +209,27 @@ static int process_lobby(Pong* pong, int timeout) {
       pong->game_session.state = WAITING_FOR_LOBBY;
       break;
 
+    case WANT_TO_JOIN: {
+      msg.id = JOIN_LOBBY;
+      msg.join_lobby.id = pong->game_session.id;
+      strcpy(msg.join_lobby.password, pong->game_session.password);
+      int n = client_message_write(&msg, buf, sizeof(buf));
+
+      if (n == 0) {
+        return -1;
+      }
+
+      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+
+      if (send_res <= 0) {
+        LOG_WARN("Send operation failed with code: %d, msg %s", send_res, strerror(errno));
+        return -1;
+      }
+
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      break;
+
+    }
     case WAITING_FOR_LOBBY: {
 
       IOEvent event;

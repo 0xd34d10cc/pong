@@ -142,7 +142,7 @@ static int server_join_lobby(Server* server, Connection* guest, JoinLobby* messa
   }
 
   if (strcmp(lobby->password, message->password)) {
-    LOG_WARN("[%02d] Failed to join lobby #%d: invalid password", connection_id(guest), lobby_id);
+    LOG_WARN("[%02d] Failed to join lobby #%d: invalid password: %s", connection_id(guest), lobby_id, message->password);
     return server_send_error(server, guest, INVALID_PASSWORD);
   }
 
