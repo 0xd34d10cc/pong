@@ -23,7 +23,7 @@ typedef struct LaunchParams {
   int session_id;
 } LaunchParams;
 
-enum {
+enum { // Connection State
   // Local game session, without any networking
   LOCAL = 0,
   // Disconnected (or didn't connected yet) from game server
@@ -34,7 +34,7 @@ enum {
   CONNECTED
 };
 
-enum {
+enum { // Game Session State
   // Have not created lobby yet
   NOT_IN_LOBBY = 0,
   // Have not joined lobby yet

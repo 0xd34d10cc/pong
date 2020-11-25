@@ -10,6 +10,23 @@
 
 #define ERR_MESSAGE_SIZE 100
 
+// -1 in case of errors
+static int parse_uint(const char* str) {
+  char* end;
+  errno = 0;
+
+  int res = strtoul(str, &end, 10);
+  if (errno != 0) {
+    return -1;
+  }
+
+  if (end[0] != '\0') {
+    return -1;
+  }
+
+  return res;
+}
+
 
 // TODO: for god sake, don't even try to use atoi more
 // returns -1 in case of error and fill err_msg
@@ -59,14 +76,22 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
   if (argc == 3) {
     if (strcmp(argv[1], "create") == 0) {
       params->game_mode = REMOTE_NEW_GAME;
+      if (strlen(argv[2])+1 > MAX_PASSWORD_SIZE) {
+        LOG_ERROR("Password is too long, please fit it in %d symbols", MAX_PASSWORD_SIZE-1);
+        return -1;
+      }
       strcpy(params->password, argv[2]);
       return argc;
     }
 
     if (strcmp(argv[1], "connect") == 0) {
       params->game_mode = REMOTE_CONNECT_GAME;
-      int session_id =  atoi(argv[2]);
+      int session_id = parse_uint(argv[2]);
 
+      if (session_id == -1) {
+        LOG_ERROR("Invalid session id: %s", argv[2]);
+        return -1;
+      }
       params->session_id = session_id;
       return argc;
     }
@@ -89,9 +114,9 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
 
       strcpy(params->ip, argv[2]);
 
-      int port = atoi(argv[3]);
+      int port = parse_uint(argv[3]);
 
-      if (port == 0) {
+      if (port == -1) {
         LOG_ERROR("%s is not valid port", argv[3]);
         return -1;
       }
@@ -102,9 +127,18 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
 
     if (strcmp(argv[1], "connect") == 0) {
 
-      int id = atoi(argv[2]);
+      int id = parse_uint(argv[2]);
+      if (id == -1) {
+        LOG_ERROR("Invalid session id: %s", argv[2]);
+        return -1;
+      }
 
       params->session_id = id;
+
+      if (strlen(argv[3])+1 > MAX_PASSWORD_SIZE) {
+        LOG_ERROR("Password is too long, please fit it in %d symbols", MAX_PASSWORD_SIZE-1);
+        return -1;
+      }
       strcpy(params->password, argv[3]);
       params->game_mode = REMOTE_CONNECT_GAME;
       return argc;
@@ -126,17 +160,17 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
 
     strcpy(params->ip, argv[2]);
 
-    int port = atoi(argv[3]);
-    if (port == 0) {
+    int port = parse_uint(argv[3]);
+    if (port == -1) {
       LOG_ERROR("%s is not valid port", argv[3]);
       return -1;
     }
 
     params->port = port;
 
-    int id = atoi(argv[4]);
-    if (id < 0) {
-      LOG_ERROR("id should be at least 0");
+    int id = parse_uint(argv[4]);
+    if (id == -1) {
+      LOG_ERROR("invalid session id: %s", argv[4]);
       return -1;
     }
 
@@ -151,7 +185,6 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
       return -1;
     }
 
-
     if (strlen(argv[2]) > 16) {
       LOG_ERROR("%s is not valid host", argv[2]);
       return -1;
@@ -159,23 +192,27 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
 
     strcpy(params->ip, argv[2]);
 
-    int port = atoi(argv[3]);
+    int port = parse_uint(argv[3]);
 
-    if (port == 0) {
+    if (port == -1) {
       LOG_ERROR("%s is not valid port", argv[3]);
       return -1;
     }
 
     params->port = port;
 
-    int id = atoi(argv[4]);
-    if (id < 0) {
+    int id = parse_uint(argv[4]);
+    if (id == -1) {
       LOG_ERROR("id should be at least 0");
       return -1;
     }
 
-
     params->session_id = id;
+    if (strlen(argv[5])+1 > MAX_PASSWORD_SIZE) {
+      LOG_ERROR("Password is too long, please fit it in %d symbols", MAX_PASSWORD_SIZE +1);
+      return -1;
+    }
+
     strcpy(params->password, argv[5]);
     return argc;
   }

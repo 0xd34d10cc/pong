@@ -48,8 +48,7 @@ int pong_init(Pong* pong, LaunchParams* params) {
   // TODO: pass game session state instead of game mode
   switch (params->game_mode) {
     case LOCAL_GAME:
-      // TODO: We have two LOCAL in different enum, could be fuckup
-      pong->game_session.state = LOCAL;
+      pong->game_session.state = NOT_IN_LOBBY;
       pong->connection_state.state = LOCAL;
       break;
 
@@ -310,7 +309,6 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
                        strerror(error));
             pong->connection_state.state = DISCONNECTED;
 
-            // TODO: Should be only in case of NONLOCAL game
             SDL_Delay(RECONNECT_DELAY);
           }
         }
@@ -319,7 +317,6 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
       case CONNECTED:
 
         process_lobby(pong, time_left);
-        SDL_Delay(time_left);
         break;
     }
 
