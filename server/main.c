@@ -1,8 +1,19 @@
 #include <stdlib.h>
+#include <signal.h>
+#include <errno.h>
+#include <string.h>
 
+#include "bool.h"
 #include "log.h"
 #include "server.h"
 
+
+static Server* s;
+
+static void sigint(int signal) {
+  (void)signal;
+  server_stop(s);
+}
 
 int main(int argc, char* argv[]) {
   // ./server 127.0.0.1 1337
@@ -27,8 +38,20 @@ int main(int argc, char* argv[]) {
   if (server_init(&server, host, port) < 0) {
     return EXIT_FAILURE;
   }
-  server_run(&server);
+
+  s = &server;
+  struct sigaction handler = {
+    .sa_handler = sigint,
+    .sa_mask = 0,
+    .sa_flags = SA_RESTART
+  };
+  if (sigaction(SIGINT, &handler, NULL) == -1) {
+    LOG_ERROR("Failed to install signal handler: %s", strerror(errno));
+  }
+
+  bool success = server_run(&server) == 0;
   server_close(&server);
 
-  return EXIT_SUCCESS;
+  LOG_INFO("Closed %s", success ? "successfully" : "due to error");
+  return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

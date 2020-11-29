@@ -15,6 +15,8 @@ static int connection_id(Connection* connection) {
 }
 
 int server_init(Server* server, const char* ip, unsigned short port) {
+  atomic_store(&server->running, false);
+
   if (reactor_init(&server->reactor) == -1) {
     LOG_ERROR("Failed to initialize reactor: %s", strerror(errno));
     return -1;
@@ -39,14 +41,6 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   LOG_INFO("Max connections: %d", pool_capacity(&server->connections));
   LOG_INFO("Max lobbies:     %d", pool_capacity(&server->lobbies));
   return 0;
-}
-
-void server_close(Server* server) {
-  tcp_listener_close(&server->listener);
-
-  // TODO: close active connections
-
-  reactor_close(&server->reactor);
 }
 
 static int server_accept(Server* server) {
@@ -299,6 +293,7 @@ static void server_disconnect(Server* server, Connection* connection) {
 }
 
 static const int MAX_EVENTS = 64;
+static const int POLL_INTERVAL_MS = 128;
 
 int server_run(Server* server) {
   if (tcp_listener_start_accept(&server->listener) == -1) {
@@ -306,10 +301,15 @@ int server_run(Server* server) {
     return -1;
   }
 
+  atomic_store(&server->running, true);
   IOEvent events[MAX_EVENTS];
-  while (true) {
-    int n_events = reactor_poll(&server->reactor, events, MAX_EVENTS, -1);
+  while (atomic_load(&server->running)) {
+    int n_events = reactor_poll(&server->reactor, events, MAX_EVENTS, POLL_INTERVAL_MS);
     if (n_events == -1) {
+      if (errno == EAGAIN || errno == EINTR) {
+        continue;
+      }
+
       LOG_ERROR("reactor_poll() failed: %s", strerror(errno));
       return -1;
     }
@@ -329,4 +329,20 @@ int server_run(Server* server) {
       }
     }
   }
+
+  return 0;
 }
+
+void server_stop(Server* server) {
+  atomic_store(&server->running, false);
+}
+
+void server_close(Server* server) {
+  for (Connection* c = pool_first(&server->connections); c != NULL; c = pool_next(&server->connections, c)) {
+    server_disconnect(server, c);
+  }
+
+  tcp_listener_close(&server->listener);
+  reactor_close(&server->reactor);
+}
+

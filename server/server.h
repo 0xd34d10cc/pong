@@ -1,6 +1,8 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <stdatomic.h>
+
 #include <netinet/in.h>
 
 #include "net/reactor.h"
@@ -34,6 +36,7 @@ typedef struct Lobby {
 } Lobby;
 
 typedef struct {
+  atomic_bool running;
   Reactor reactor;
   TcpListener listener;
 
@@ -46,6 +49,7 @@ typedef struct {
 
 int server_init(Server* server, const char* host, unsigned short port);
 int server_run(Server* server);
+void server_stop(Server* server);
 void server_close(Server* server);
 
 #endif // SERVER_H

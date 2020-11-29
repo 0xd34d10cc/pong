@@ -122,6 +122,5 @@ void* pool_first(Pool* pool) {
 }
 
 void* pool_next(Pool* pool, void* object) {
-  assert(pool_contains(pool, object));
   return pool_search_forward(pool, pool_index(pool, object) + 1);
 }
