@@ -110,6 +110,8 @@ static void pong_process_events(Pong* pong) {
 }
 
 static int process_server_message(Pong* pong, ServerMessage* message, int timeout) {
+  // FIXME: use or remove
+  (void)timeout;
   int res = 0;
 
   switch (message->id) {

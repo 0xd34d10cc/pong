@@ -9,6 +9,8 @@ clang -o pong scu.c                         \
       -Werror=implicit-int                  \
       -Werror=int-conversion                \
       -Werror=return-type                   \
+      -Werror=unused-variable               \
+      -Werror=unused-parameter              \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \
