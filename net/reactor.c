@@ -30,7 +30,7 @@ static bool is_subscribed(Evented* object, unsigned events) {
 
 // Convert reactor events to epoll events
 static unsigned to_epoll(unsigned events) {
-  unsigned epoll_events = 0;
+  unsigned epoll_events = EPOLLET;
 
   if (events & IO_EVENT_READ) {
     epoll_events |= EPOLLIN;
