@@ -18,6 +18,7 @@ void tcp_listener_close(TcpListener* listener);
 
 // Start accept() operation
 int tcp_listener_start_accept(TcpListener* listener);
+int tcp_listener_stop_accept(TcpListener* listener);
 
 // Process accept() operation
 // Requires: IO_EVENT_READ

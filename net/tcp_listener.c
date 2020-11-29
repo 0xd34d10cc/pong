@@ -53,6 +53,10 @@ int tcp_listener_start_accept(TcpListener* listener) {
   return reactor_update(listener->reactor, &listener->state, IO_EVENT_READ);
 }
 
+int tcp_listener_stop_accept(TcpListener* listener) {
+  return reactor_update(listener->reactor, &listener->state, 0);
+}
+
 int tcp_listener_accept(TcpListener* listener, TcpStream* accepted, struct sockaddr_in* address) {
   socklen_t address_len = sizeof(struct sockaddr_in);
   int socket = accept4(listener->state.fd, (struct sockaddr*)address, &address_len, SOCK_NONBLOCK);

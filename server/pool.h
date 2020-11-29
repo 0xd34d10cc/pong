@@ -3,7 +3,6 @@
 
 #include "bool.h"
 
-#define POOL_CAPACITY 4096
 
 typedef struct Pool {
   char* memory;  // pointer to start of memory block
@@ -13,7 +12,7 @@ typedef struct Pool {
   int n_objects;   // current number of objects stored in pool
   int max_objects; // maximum number of objects that this pool can contain
 
-  void* free;       // pointer to the head of free list
+  void* free;      // pointer to the head of free list
 } Pool;
 
 // Initialize the pool
@@ -37,6 +36,8 @@ void* pool_at(Pool* pool, int index);
 int pool_index(Pool* pool, void* object);
 // returns number of objects allocated in the pool
 int pool_size(Pool* pool);
+// returns maximum number of objects that could be allocate in pool
+int pool_capacity(Pool* pool);
 
 // returns a pointer to the first object in pool
 void* pool_first(Pool* pool);

@@ -103,6 +103,10 @@ int pool_size(Pool* pool) {
   return pool->n_objects;
 }
 
+int pool_capacity(Pool* pool) {
+  return pool->max_objects;
+}
+
 static void* pool_search_forward(Pool* pool, int start) {
   for (int i = start; i < pool->max_objects; ++i) {
     if (pool_slot_get(pool, i)) {

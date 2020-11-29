@@ -52,10 +52,11 @@ static int server_accept(Server* server) {
   while (true) {
     Connection* connection = pool_aquire(&server->connections);
     if (connection == NULL) {
-      // FIXME: handle correctly:
-      //        1. Unsubscribe from notifications on listener
-      //        2. Resubscribe when one of active clients disconnects
       LOG_WARN("Could not accept connection: the connection pool is full");
+      if (tcp_listener_stop_accept(&server->listener) == -1) {
+        LOG_ERROR("Failed to pause accept() operation: %s", strerror(errno));
+        return -1;
+      }
       return 0;
     }
 
@@ -143,7 +144,7 @@ static int server_create_lobby(Server* server, Connection* owner, CreateLobby* m
 static int server_join_lobby(Server* server, Connection* guest, JoinLobby* message) {
   int lobby_id = message->id;
   Lobby* lobby = pool_at(&server->lobbies, lobby_id);
-  if (lobby == NULL) {
+  if (!pool_contains(&server->lobbies, lobby)) {
     LOG_WARN("[%02d] Tried to join to invalid lobby #%d", connection_id(guest), lobby_id);
     return server_send_error(server, guest, INVALID_LOBBY_ID);
   }
@@ -283,7 +284,15 @@ static void server_disconnect(Server* server, Connection* connection) {
 
   LOG_INFO("[%02d] Disconnected", connection_id(connection));
   tcp_close(&connection->stream);
+  bool was_full = pool_size(&server->connections) == pool_capacity(&server->connections);
   pool_release(&server->connections, connection);
+
+  if (was_full) {
+    if (tcp_listener_start_accept(&server->listener) == -1) {
+      LOG_ERROR("Failed to resume accept() operation: %s", strerror(errno));
+    }
+    LOG_INFO("Connection pool is no longer full. Starting to accept new clients.");
+  }
 }
 
 static const int MAX_EVENTS = 64;
