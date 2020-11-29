@@ -3,6 +3,8 @@
 
 #include "bool.h"
 
+// returns capacity required to store n objects of type in pool
+#define POOL_CAPACITY(type, n) (n * sizeof(type) + (n + 7) / 8)
 
 typedef struct Pool {
   char* memory;  // pointer to start of memory block

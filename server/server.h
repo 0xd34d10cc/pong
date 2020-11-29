@@ -37,10 +37,10 @@ typedef struct {
   Reactor reactor;
   TcpListener listener;
 
-  char connections_memory[MAX_CONNECTIONS * sizeof(Connection)];
+  char connections_memory[POOL_CAPACITY(Connection, MAX_CONNECTIONS)];
   Pool connections;
 
-  char lobbies_memory[MAX_LOBBIES * sizeof(Lobby)];
+  char lobbies_memory[POOL_CAPACITY(Lobby, MAX_LOBBIES)];
   Pool lobbies;
 } Server;
 

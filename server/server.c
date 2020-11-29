@@ -35,6 +35,9 @@ int server_init(Server* server, const char* ip, unsigned short port) {
     server->lobbies_memory, sizeof(server->lobbies_memory),
     sizeof(Lobby), alignof(Lobby)
   );
+
+  LOG_INFO("Max connections: %d", pool_capacity(&server->connections));
+  LOG_INFO("Max lobbies:     %d", pool_capacity(&server->lobbies));
   return 0;
 }
 
