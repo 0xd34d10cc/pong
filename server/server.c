@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stdalign.h>
 
 #include <arpa/inet.h>
 
@@ -24,8 +25,16 @@ int server_init(Server* server, const char* ip, unsigned short port) {
     return -1;
   }
 
-  pool_init(&server->connections, sizeof(Connection));
-  pool_init(&server->lobbies, sizeof(Lobby));
+  pool_init(
+    &server->connections,
+    server->connections_memory, sizeof(server->connections_memory),
+    sizeof(Connection), alignof(Connection)
+  );
+  pool_init(
+    &server->lobbies,
+    server->lobbies_memory, sizeof(server->lobbies_memory),
+    sizeof(Lobby), alignof(Lobby)
+  );
   return 0;
 }
 
@@ -43,6 +52,9 @@ static int server_accept(Server* server) {
   while (true) {
     Connection* connection = pool_aquire(&server->connections);
     if (connection == NULL) {
+      // FIXME: handle correctly:
+      //        1. Unsubscribe from notifications on listener
+      //        2. Resubscribe when one of active clients disconnects
       LOG_WARN("Could not accept connection: the connection pool is full");
       return 0;
     }

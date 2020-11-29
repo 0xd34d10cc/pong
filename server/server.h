@@ -11,6 +11,9 @@
 #include "pool.h"
 
 
+#define MAX_CONNECTIONS 32
+#define MAX_LOBBIES 16
+
 typedef struct Lobby Lobby;
 
 typedef struct {
@@ -34,7 +37,10 @@ typedef struct {
   Reactor reactor;
   TcpListener listener;
 
+  char connections_memory[MAX_CONNECTIONS * sizeof(Connection)];
   Pool connections;
+
+  char lobbies_memory[MAX_LOBBIES * sizeof(Lobby)];
   Pool lobbies;
 } Server;
 
