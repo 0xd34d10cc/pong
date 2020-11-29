@@ -44,8 +44,6 @@ int server_init(Server* server, const char* ip, unsigned short port) {
 }
 
 static int server_accept(Server* server) {
-  struct sockaddr_in addr;
-  socklen_t addr_size = sizeof(addr);
   while (true) {
     Connection* connection = pool_aquire(&server->connections);
     if (connection == NULL) {
@@ -75,7 +73,7 @@ static int server_accept(Server* server) {
   }
 }
 
-static int server_send_message(Server* server, Connection* connection, ServerMessage* message) {
+static int send_message(Connection* connection, ServerMessage* message) {
   char buffer[MAX_MESSAGE_SIZE];
   int n = server_message_write(message, buffer, sizeof(buffer));
   if (n == 0) {
@@ -97,11 +95,11 @@ static int server_send_message(Server* server, Connection* connection, ServerMes
   return 0;
 }
 
-static int server_send_error(Server* server, Connection* connection, int error) {
+static int send_error(Connection* connection, int error) {
   ServerMessage message;
   message.id = ERROR_STATUS;
   message.error.status = error;
-  return server_send_message(server, connection, &message);
+  return send_message(connection, &message);
 }
 
 static void lobby_init(Lobby* lobby, Connection* owner, const char* password) {
@@ -117,13 +115,13 @@ static int server_create_lobby(Server* server, Connection* owner, CreateLobby* m
     int lobby_id = pool_index(&server->lobbies, owner->lobby);
     LOG_INFO("[%02d] Failed to create game lobby: client already in lobby #%d", connection_id(owner), lobby_id);
     // TODO: disconnect from current lobby and create a new one instead
-    return server_send_error(server, owner, INTERNAL_ERROR);
+    return send_error(owner, INTERNAL_ERROR);
   }
 
   Lobby* lobby = pool_aquire(&server->lobbies);
   if (lobby == NULL) {
     LOG_ERROR("[%02d] Failed to create new lobby: out of memory", connection_id(owner));
-    return server_send_error(server, owner, INTERNAL_ERROR);
+    return send_error(owner, INTERNAL_ERROR);
   }
 
   lobby_init(lobby, owner, message->password);
@@ -135,7 +133,7 @@ static int server_create_lobby(Server* server, Connection* owner, CreateLobby* m
   ServerMessage response;
   response.id = LOBBY_CREATED;
   response.lobby_created.id = lobby_id;
-  return server_send_message(server, owner, &response);
+  return send_message(owner, &response);
 }
 
 static int server_join_lobby(Server* server, Connection* guest, JoinLobby* message) {
@@ -143,17 +141,17 @@ static int server_join_lobby(Server* server, Connection* guest, JoinLobby* messa
   Lobby* lobby = pool_at(&server->lobbies, lobby_id);
   if (!pool_contains(&server->lobbies, lobby)) {
     LOG_WARN("[%02d] Tried to join to invalid lobby #%d", connection_id(guest), lobby_id);
-    return server_send_error(server, guest, INVALID_LOBBY_ID);
+    return send_error(guest, INVALID_LOBBY_ID);
   }
 
   if (lobby->guest != NULL || lobby->owner == guest) {
     LOG_WARN("[%02d] Failed to join lobby #%d: lobby is full", connection_id(guest), lobby_id);
-    return server_send_error(server, guest, LOBBY_IS_FULL);
+    return send_error(guest, LOBBY_IS_FULL);
   }
 
   if (strcmp(lobby->password, message->password)) {
     LOG_WARN("[%02d] Failed to join lobby #%d: invalid password: %s", connection_id(guest), lobby_id, message->password);
-    return server_send_error(server, guest, INVALID_PASSWORD);
+    return send_error(guest, INVALID_PASSWORD);
   }
 
   lobby->guest = guest;
@@ -164,13 +162,13 @@ static int server_join_lobby(Server* server, Connection* guest, JoinLobby* messa
   ServerMessage response;
   response.id = LOBBY_JOINED;
   strcpy(response.lobby_joined.ipv4, inet_ntoa(owner->address.sin_addr));
-  if (server_send_message(server, guest, &response) < 0) {
+  if (send_message(guest, &response) < 0) {
     return -1;
   }
 
   strcpy(response.lobby_joined.ipv4, inet_ntoa(guest->address.sin_addr));
   LOG_INFO("[%02d] Joined lobby #%d", connection_id(guest), lobby_id);
-  return server_send_message(server, owner, &response);
+  return send_message(owner, &response);
 }
 
 static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
@@ -269,7 +267,7 @@ static void server_disconnect(Server* server, Connection* connection) {
 
     if (opponent) {
       opponent->lobby = NULL;
-      if (server_send_error(server, opponent, OPPONENT_DISCONNECTED) < 0) {
+      if (send_error(opponent, OPPONENT_DISCONNECTED) < 0) {
         LOG_WARN("[%02d] Failed to notify about opponent disconnection");
         server_disconnect(server, opponent);
       }
