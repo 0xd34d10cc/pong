@@ -45,8 +45,7 @@ int tcp_start_connect(TcpStream* stream, const char* ip, unsigned short port) {
       return -1;
     }
   }
-
-  return 0;
+  return reactor_update(stream->reactor, &stream->state, IO_EVENT_WRITE);
 }
 
 int tcp_connect(TcpStream* stream) {
@@ -55,6 +54,7 @@ int tcp_connect(TcpStream* stream) {
   if (getsockopt(stream->state.fd, SOL_SOCKET, SO_ERROR, &error, &error_len) == -1) {
     return -1;
   }
+  reactor_update(stream->reactor, &stream->state, 0);
   return error;
 }
 

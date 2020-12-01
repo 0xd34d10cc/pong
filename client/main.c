@@ -28,7 +28,6 @@ static int parse_uint(const char* str) {
 }
 
 
-// TODO: for god sake, don't even try to use atoi more
 // returns -1 in case of error and fill err_msg
 // returns 0 in case of no error, but no further processing is needed
 // returns number of params otherwise

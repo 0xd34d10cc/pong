@@ -109,9 +109,7 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
-static int process_server_message(Pong* pong, ServerMessage* message, int timeout) {
-  // FIXME: use or remove
-  (void)timeout;
+static int process_server_message(Pong* pong, ServerMessage* message) {
   int res = 0;
 
   switch (message->id) {
@@ -131,7 +129,7 @@ static int process_server_message(Pong* pong, ServerMessage* message, int timeou
   return res;
 }
 
-static int process_read(Pong* pong, int timeout) {
+static int process_read(Pong* pong) {
   while (true) {
     int n = tcp_recv(&pong->tcp_stream);
 
@@ -163,7 +161,7 @@ static int process_read(Pong* pong, int timeout) {
         break;
       }
 
-      process_server_message(pong, &message, timeout);
+      process_server_message(pong, &message);
 
       offset += msg_size;
 
@@ -186,7 +184,7 @@ static int process_read(Pong* pong, int timeout) {
   return 0;
 }
 
-static int process_lobby(Pong* pong, int timeout) {
+static int prepare_client_message(Pong* pong) {
   ClientMessage msg = {0};
   char buf[MAX_MESSAGE_SIZE];
 
@@ -233,31 +231,6 @@ static int process_lobby(Pong* pong, int timeout) {
 
     }
     case WAITING_FOR_LOBBY: {
-      IOEvent event;
-      int n_events = reactor_poll(&pong->reactor, &event, 1, timeout);
-      if (n_events == -1) {
-        LOG_ERROR("reactor_poll failed: %s", strerror(errno));
-        return -1;
-      }
-
-      if (n_events == 0) {
-        return 0;
-      }
-
-      if (event.events & IO_EVENT_READ) {
-        if (process_read(pong, timeout) == -1) {
-          LOG_ERROR("process read failed");
-          return -1;
-        }
-      }
-
-      if (event.events & IO_EVENT_WRITE) {
-        if(tcp_send(&pong->tcp_stream) == -1) {
-          LOG_WARN("tcp_send failed: %s", strerror(errno));
-          return -1;
-        }
-      }
-
       break;
     }
 
@@ -274,56 +247,59 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
 
   while (now < deadline) {
     unsigned time_left = deadline - now;
-    switch (pong->connection_state.state) {
-      case DISCONNECTED:
-        if (tcp_start_connect(&pong->tcp_stream,
-                              pong->connection_state.ip,
-                              pong->connection_state.port) == -1) {
-          LOG_ERROR("Failed to start connection: %s", strerror(errno));
-          return -1;
-        }
-        reactor_update(&pong->reactor, &pong->tcp_stream.state, IO_EVENT_WRITE);
-        pong->connection_state.state = AWAITING_CONNECTION;
-        break;
-      case AWAITING_CONNECTION: {
-        IOEvent event;
-        int n = reactor_poll(&pong->reactor, &event, 1, time_left);
-        if (n < 0) {
-          LOG_ERROR("reactor_poll() failed: %s", strerror(errno));
-          return -1;
-        }
-
-        if (n == 1 && event.events & IO_EVENT_WRITE) {
-          reactor_update(&pong->reactor, &pong->tcp_stream.state, 0);
-          int error = tcp_connect(&pong->tcp_stream);
-          if (error == 0) {
-            LOG_INFO("Successfully connected to %s:%d",
-                     pong->connection_state.ip,
-                     pong->connection_state.port);
-            pong->connection_state.state = CONNECTED;
-            tcp_start_recv(&pong->tcp_stream);
-
-          }
-          else {
-            LOG_ERROR("Failed to connect to %s:%d: %s",
-                       pong->connection_state.ip,
-                       pong->connection_state.port,
-                       strerror(error));
-            pong->connection_state.state = DISCONNECTED;
-
-            SDL_Delay(RECONNECT_DELAY);
-          }
-        }
-        break;
+    IOEvent event;
+    if (pong->connection_state.state == DISCONNECTED) {
+      if (tcp_start_connect(&pong->tcp_stream,
+                            pong->connection_state.ip,
+                            pong->connection_state.port) == -1) {
+        LOG_ERROR("Failed to start connection: %s", strerror(errno));
+        return -1;
       }
-      case CONNECTED:
-
-        process_lobby(pong, time_left);
-        break;
+      pong->connection_state.state = AWAITING_CONNECTION;
     }
 
-    now = SDL_GetTicks();
+    int n = reactor_poll(&pong->reactor, &event, 1, time_left);
+    if (n < 0) {
+      LOG_ERROR("reactor_poll() failed: %s", strerror(errno));
+      return -1;
+    }
+
+
+    if (event.events & IO_EVENT_READ) {
+      if (process_read(pong) == -1) {
+        LOG_ERROR("process read failed");
+        return -1;
+      }
+    }
+
+    if (event.events & IO_EVENT_WRITE) {
+      if (pong->connection_state.state == AWAITING_CONNECTION) {
+        int error = tcp_connect(&pong->tcp_stream);
+        if (error == 0) {
+          LOG_INFO("Successfully connected to %s:%d",
+                   pong->connection_state.ip,
+                   pong->connection_state.port);
+          pong->connection_state.state = CONNECTED;
+          tcp_start_recv(&pong->tcp_stream);
+        } else {
+          LOG_WARN("tcp connect failed");
+          pong->connection_state.state = DISCONNECTED;
+          return -1;
+        }
+
+        pong->connection_state.state = CONNECTED;
+      }
+
+      prepare_client_message(pong);
+
+
+      if(tcp_send(&pong->tcp_stream) == -1) {
+        LOG_WARN("tcp_send failed: %s", strerror(errno));
+        return -1;
+      }
+    }
   }
+
   return 0;
 }
 
