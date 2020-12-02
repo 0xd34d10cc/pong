@@ -198,7 +198,7 @@ static int prepare_client_message(Pong* pong) {
       if (n == 0) {
         return -1;
       }
-
+      LOG_INFO("Sending Create Lobby with pw: %s", msg.create_lobby.password);
       int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
 
       if (send_res <= 0) {
@@ -219,6 +219,7 @@ static int prepare_client_message(Pong* pong) {
         return -1;
       }
 
+      LOG_INFO("Sending Join Lobby with id: %d and password: %s", msg.join_lobby.id, msg.join_lobby.password);
       int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
 
       if (send_res <= 0) {
@@ -298,6 +299,8 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
         return -1;
       }
     }
+
+    now = SDL_GetTicks();
   }
 
   return 0;
