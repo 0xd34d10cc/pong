@@ -6,6 +6,10 @@
 #define MAX_MESSAGE_SIZE 256
 #define MAX_PASSWORD_SIZE 32
 
+typedef struct Vec2 {
+  float x;
+  float y;
+} Vec2;
 
 typedef enum {
   ERROR_STATUS = 0xff,
@@ -13,10 +17,12 @@ typedef enum {
   // client messages
   CREATE_LOBBY = 0x0,
   JOIN_LOBBY = 0x1,
+  CLIENT_UPDATE = 0x2,
 
   // server messages
-  LOBBY_CREATED = 0x2,
-  LOBBY_JOINED = 0x3,
+  LOBBY_CREATED = 0x10,
+  LOBBY_JOINED = 0x11,
+  SERVER_UPDATE = 0x12
 } MessageType;
 
 
@@ -43,6 +49,27 @@ typedef struct {
   // ip address of opponent
   char ipv4[16];
 } LobbyJoined;
+
+// Client sends to server it's position and speed
+typedef struct {
+  Vec2 position;
+  Vec2 speed;
+} ClientUpdate;
+
+// Server sends this to clients to update their position for opponent
+// and ball.
+typedef struct {
+  Vec2 opponent_position;
+  Vec2 opponent_speed;
+
+  Vec2 ball_position;
+  Vec2 ball_speed;
+} ServerUpdate;
+
+// Server sends this to clients to update game state
+typedef struct {
+  int state;
+} GameStateUpdate;
 
 // Error statuses
 enum {
@@ -75,6 +102,7 @@ typedef struct {
   union {
     CreateLobby create_lobby;
     JoinLobby join_lobby;
+    ClientUpdate client_update;
   };
 } ClientMessage;
 
@@ -84,6 +112,8 @@ typedef struct ServerMsg {
   union {
     LobbyCreated lobby_created;
     LobbyJoined lobby_joined;
+    ServerUpdate server_update;
+    GameStateUpdate game_state_update;
     ErrorStatus error;
   };
 } ServerMessage;

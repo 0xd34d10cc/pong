@@ -29,7 +29,8 @@ typedef struct Game {
 
 typedef enum {
   STATE_RUNNING,
-  STATE_LOST
+  STATE_LOST,
+  STATE_WON
 } GameState;
 
 typedef enum {
