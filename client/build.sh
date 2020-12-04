@@ -14,4 +14,4 @@ clang -o pong scu.c                         \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \
-      -lSDL2
+      `pkg-config --cflags --libs sdl2`     \
