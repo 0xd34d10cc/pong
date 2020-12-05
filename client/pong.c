@@ -10,7 +10,7 @@
 
 #define RECONNECT_DELAY 1000 * 3
 
-int pong_init(Pong* pong, LaunchParams* params) {
+int pong_init(Pong* pong, Args* params) {
   pong->running = false;
   pong->window = SDL_CreateWindow(
       "pong",
@@ -43,7 +43,7 @@ int pong_init(Pong* pong, LaunchParams* params) {
 
   tcp_init(&pong->tcp_stream, &pong->reactor);
 
-  pong->game_session.id = params->session_id;
+  pong->game_session.id = params->lobby_id;
   strcpy(pong->game_session.password, params->password);
   // TODO: pass game session state instead of game mode
   switch (params->game_mode) {
