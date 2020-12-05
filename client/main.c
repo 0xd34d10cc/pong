@@ -7,6 +7,7 @@
 
 #include "pong.h"
 #include "log.h"
+#include "menu.h"
 
 #define ERR_MESSAGE_SIZE 100
 
@@ -105,7 +106,7 @@ static int fill_params(int argc, char* argv[], LaunchParams* params) {
   // ./pong connect id pw // connect to existing session with pw
   if (argc == 4) {
     if (strcmp(argv[1], "create") == 0) {
-
+      params->game_mode = REMOTE_NEW_GAME;
       if (strlen(argv[2]) > 16) {
         LOG_ERROR("%s is not valid host", argv[2]);
         return -1;

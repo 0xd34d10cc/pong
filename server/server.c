@@ -171,6 +171,35 @@ static int server_join_lobby(Server* server, Connection* guest, JoinLobby* messa
   return send_message(owner, &response);
 }
 
+
+static int server_client_update(Server* server, Connection* player, ClientUpdate* message) {
+  if (!pool_contains(&server->lobbies, player->lobby)) {
+    LOG_WARN("[%02d] Failed to find lobby.", connection_id(player));
+    return send_error(player, INVALID_LOBBY_ID);
+  }
+
+
+  ServerMessage response;
+
+  response.id = SERVER_UPDATE;
+  response.server_update.opponent_position.x = message->position.x;
+  response.server_update.opponent_position.y = message->position.y;
+
+  // FIXME: fill with actuall values when implemented
+  response.server_update.ball_position.x = 0;
+  response.server_update.ball_position.y = 0;
+
+  LOG_INFO("Dummy update has been sent");
+
+  if (player->lobby->owner == player) {
+    return send_message(player->lobby->guest, &response);
+  }
+  else {
+    return send_message(player->lobby->owner, &response);
+  }
+
+}
+
 static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
   int status = 0;
   switch (message->id) {
@@ -179,6 +208,9 @@ static int server_process_message(Server* server, Connection* connection, Client
       break;
     case JOIN_LOBBY:
       status = server_join_lobby(server, connection, &message->join_lobby);
+      break;
+    case CLIENT_UPDATE:
+      status = server_client_update(server, connection, &message->client_update);
       break;
     default:
       LOG_WARN("[%02d] Unexpected message: %d", connection_id(connection), message->id);

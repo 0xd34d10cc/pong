@@ -61,6 +61,12 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
       case ERROR_STATUS:
         READ(server_message->error.status);
         break;
+      case SERVER_UPDATE:
+        READ(server_message->server_update.opponent_position);
+        READ(server_message->server_update.opponent_speed);
+        READ(server_message->server_update.ball_position);
+        READ(server_message->server_update.ball_speed);
+        break;
       default:
         return -1;
     }
@@ -76,6 +82,10 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
       case JOIN_LOBBY:
         READ(client_message->join_lobby.id);
         READ_ENDING_STR(client_message->join_lobby.password);
+        break;
+      case CLIENT_UPDATE:
+        READ(client_message->client_update.position);
+        READ(client_message->client_update.speed);
         break;
       default:
         return -1;
@@ -139,6 +149,12 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
       case ERROR_STATUS:
         WRITE(server_message->error.status);
         break;
+      case SERVER_UPDATE:
+        WRITE(server_message->server_update.opponent_position);
+        WRITE(server_message->server_update.opponent_speed);
+        WRITE(server_message->server_update.ball_position);
+        WRITE(server_message->server_update.ball_speed);
+        break;
       default:
         PANIC("Unhandled message id: %d", server_message->id);
         break;
@@ -155,6 +171,10 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
       case JOIN_LOBBY:
         WRITE(client_message->join_lobby.id);
         WRITE_STR(client_message->join_lobby.password);
+        break;
+      case CLIENT_UPDATE:
+        WRITE(client_message->client_update.position);
+        WRITE(client_message->client_update.speed);
         break;
       default:
         PANIC("Unhandled message id: %d", client_message->id);
