@@ -72,6 +72,9 @@ void renderer_render(Renderer* renderer, Game* game) {
     case STATE_RUNNING:
       render_running(renderer, game);
       break;
+    case STATE_WON:
+      // TODO: render
+      break;
   }
 
   SDL_RenderPresent(renderer->backend);

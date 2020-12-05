@@ -5,23 +5,9 @@
 #include "net/tcp_stream.h"
 #include "game/game.h"
 #include "renderer.h"
+#include "args.h"
 
 typedef struct SDL_Window SDL_Window;
-
-typedef enum GameMode {
-  LOCAL_GAME = 0,
-  REMOTE_NEW_GAME,
-  REMOTE_CONNECT_GAME
-} GameMode;
-
-typedef struct LaunchParams {
-  // TODO: find max password size
-  char password[100];
-  int port;
-  char ip[16];
-  int game_mode;
-  int session_id;
-} LaunchParams;
 
 enum { // Connection State
   // Local game session, without any networking
@@ -82,7 +68,7 @@ typedef struct Pong {
 } Pong;
 
 // returns 0 on success
-int pong_init(Pong* pong, LaunchParams* params);
+int pong_init(Pong* pong, Args* params);
 void pong_run(Pong* pong);
 void pong_close(Pong* pong);
 
