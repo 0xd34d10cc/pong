@@ -20,13 +20,13 @@ void game_log(LogLevel log_level, const char* file, int line, const char* format
   const char* level = "???";
   switch (log_level) {
     case LOG_LEVEL_INFO:
-      level = "INFO";
+      level = "INFO ";
       break;
     case LOG_LEVEL_WARNING:
-      level = "WARN";
+      level = "WARN ";
       break;
     case LOG_LEVEL_ERROR:
-      level = "ERR ";
+      level = "ERROR";
       break;
     case LOG_LEVEL_DEBUG:
       level = "DEBUG";
