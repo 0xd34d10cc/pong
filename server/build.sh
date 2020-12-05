@@ -13,4 +13,5 @@ clang -o server scu.c                       \
       -Werror=unused-parameter              \
       -I..                                  \
       -I../utils                            \
-      -D_GNU_SOURCE
+      -D_GNU_SOURCE                         \
+      -D DEBUG
