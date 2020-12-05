@@ -4,14 +4,21 @@
 typedef enum {
   LOG_LEVEL_INFO,
   LOG_LEVEL_WARNING,
-  LOG_LEVEL_ERROR
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_DEBUG
 } LogLevel;
 
-void game_log(LogLevel level, const char* format, ...);
+void game_log(LogLevel level, const char* file, int line, const char* format, ...);
 
-#define VA_COMMA(...) , __VA_ARGS__
-#define LOG_INFO(...) game_log(LOG_LEVEL_INFO, __VA_ARGS__)
-#define LOG_WARN(...) game_log(LOG_LEVEL_WARNING, __VA_ARGS__)
-#define LOG_ERROR(...) game_log(LOG_LEVEL_ERROR, __VA_ARGS__)
+
+#define LOG_INFO(...) game_log(LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_WARN(...) game_log(LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR(...) game_log(LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+
+#ifdef DEBUG
+#define LOG_DEBUG(...) game_log(LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#else
+#define LOG_DEBUG(...) do { }while(0)
+#endif // DEBUG
 
 #endif // LOG_H

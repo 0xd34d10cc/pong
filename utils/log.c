@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <time.h>
 
-void game_log(LogLevel log_level, const char* format, ...) {
+void game_log(LogLevel log_level, const char* file, int line, const char* format, ...) {
   char message[1024];
 
   va_list args;
@@ -20,13 +20,16 @@ void game_log(LogLevel log_level, const char* format, ...) {
   const char* level = "???";
   switch (log_level) {
     case LOG_LEVEL_INFO:
-      level = "INFO";
+      level = "INFO ";
       break;
     case LOG_LEVEL_WARNING:
-      level = "WARN";
+      level = "WARN ";
       break;
     case LOG_LEVEL_ERROR:
-      level = "ERR ";
+      level = "ERROR";
+      break;
+    case LOG_LEVEL_DEBUG:
+      level = "DEBUG";
       break;
   }
 
@@ -36,5 +39,11 @@ void game_log(LogLevel log_level, const char* format, ...) {
   char log_time[32];
   strftime(log_time, sizeof(log_time), "%T", &utc);
 
-  fprintf(stderr, "%s [%s] %s%s\n", log_time, level, message, truncated);
+
+  if(log_level == LOG_LEVEL_DEBUG) {
+    fprintf(stderr, "%s [%s] %s:%d %s%s\n", log_time, level, file, line, message, truncated);
+  }
+  else {
+    fprintf(stderr, "%s [%s] %s%s\n", log_time, level, message, truncated);
+  }
 }
