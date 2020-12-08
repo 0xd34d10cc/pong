@@ -14,5 +14,5 @@ clang -o pong scu.c                         \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \
-      -D DEBUG                              \
-      `pkg-config --cflags --libs sdl2`     
+      -DPONG_DEBUG                          \
+      `pkg-config --cflags --libs sdl2`

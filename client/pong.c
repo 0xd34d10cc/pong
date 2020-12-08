@@ -18,7 +18,7 @@ int pong_init(Pong* pong, Args* params) {
       SDL_WINDOWPOS_UNDEFINED,
       DEFAULT_WINDOW_WIDTH,
       DEFAULT_WINDOW_HEIGHT,
-      SDL_WINDOW_SHOWN
+      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
   );
 
   if (!pong->window) {

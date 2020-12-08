@@ -1,0 +1,32 @@
+#include "vgl.h"
+
+#include <SDL2/SDL_video.h>
+
+#define TRY_LOAD(name)                         \
+  do {                                         \
+    void* ptr = SDL_GL_GetProcAddress(#name);  \
+    if (!ptr) {                                \
+      return -1;                               \
+    }                                          \
+    table->name = ptr;                         \
+  } while (0)
+
+int vgl_load(VGL* table) {
+  TRY_LOAD(glCreateShader);
+  TRY_LOAD(glDeleteShader);
+  TRY_LOAD(glShaderSource);
+  TRY_LOAD(glCompileShader);
+  TRY_LOAD(glGetShaderiv);
+  TRY_LOAD(glGetShaderInfoLog);
+
+  TRY_LOAD(glCreateProgram);
+  TRY_LOAD(glDeleteProgram);
+  TRY_LOAD(glAttachShader);
+  TRY_LOAD(glDetachShader);
+  TRY_LOAD(glLinkProgram);
+  TRY_LOAD(glGetProgramiv);
+
+  TRY_LOAD(glGetUniformLocation);
+  TRY_LOAD(glGetAttribLocation);
+  return 0;
+}
