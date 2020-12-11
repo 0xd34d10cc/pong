@@ -1,11 +1,10 @@
 #ifndef GAME_H
 #define GAME_H
 
-#define PLAYER_WIDTH 100
-#define PLAYER_HEIGHT 15
-
-#define BALL_WIDTH 30
-#define BALL_HEIGHT 30
+#define PLAYER_WIDTH_COEF 0.125
+#define PLAYER_HEIGHT_COEF 0.025
+#define BALL_WIDTH_COEF 0.05
+#define BALL_HEIGHT_COEF 0.05
 
 // FIXME: these are client only definitions
 #define DEFAULT_WINDOW_WIDTH 800
@@ -14,14 +13,14 @@
 typedef struct Game {
   int state;
 
-  int player_x;
-  int player_dx;
+  float player_x;
+  float player_dx;
 
-  int ball_x;
-  int ball_y;
+  float ball_x;
+  float ball_y;
 
-  int ball_dx;
-  int ball_dy;
+  float ball_dx;
+  float ball_dy;
 
   int board_width;
   int board_height;
