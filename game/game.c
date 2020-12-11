@@ -11,8 +11,8 @@ static bool in_range(int x, int left, int right) {
   return !(x < left || x > right);
 }
 
-static const int PLAYER_SPEED = 5;
-static const int BALL_SPEED = PLAYER_SPEED - 2;
+static const int PLAYER_SPEED = 0.1;
+static const int BALL_SPEED = PLAYER_SPEED - 0.05;
 
 void game_init(Game* game, int board_width, int board_height) {
   game->state = STATE_RUNNING;
@@ -31,9 +31,9 @@ GameState game_state(Game* game) {
 }
 
 void game_positions(Game* game, int* player, int* ball_x, int* ball_y) {
-  *player = game->player_x;
-  *ball_x = game->ball_x;
-  *ball_y = game->ball_y;
+  *player = (game->player_x + 1) * (game->board_width /2);
+  *ball_x = (game->ball_x + 1) * (game->board_width / 2);
+  *ball_y = (game->ball_y +1) * (game->board_height /2 );
 }
 
 void game_event(Game* game, Event event) {
