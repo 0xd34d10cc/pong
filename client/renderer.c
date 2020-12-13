@@ -42,16 +42,16 @@ static void render_lost(Renderer* renderer) {
 static void render_running(Renderer* renderer, Game* game) {
   SDL_Rect player = {
     .x = 0,
-    .y = DEFAULT_WINDOW_HEIGHT - (DEFAULT_WINDOW_HEIGHT * PLAYER_HEIGHT_COEF),
-    .w = DEFAULT_WINDOW_WIDTH * PLAYER_WIDTH_COEF,
-    .h = DEFAULT_WINDOW_HEIGHT * PLAYER_HEIGHT_COEF
+    .y = DEFAULT_WINDOW_HEIGHT - (DEFAULT_WINDOW_HEIGHT * PLAYER_HEIGHT / 2),
+    .w = DEFAULT_WINDOW_WIDTH * PLAYER_WIDTH / 2,
+    .h = DEFAULT_WINDOW_HEIGHT * PLAYER_HEIGHT / 2
   };
 
   SDL_Rect ball = {
     .x = 0,
     .y = 0,
-    .w = DEFAULT_WINDOW_WIDTH * BALL_WIDTH_COEF,
-    .h = DEFAULT_WINDOW_HEIGHT * BALL_HEIGHT_COEF
+    .w = DEFAULT_WINDOW_WIDTH * BALL_WIDTH / 2,
+    .h = DEFAULT_WINDOW_HEIGHT * BALL_HEIGHT / 2
   };
 
   game_positions(game, &player.x, &ball.x, &ball.y);

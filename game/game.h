@@ -1,29 +1,27 @@
 #ifndef GAME_H
 #define GAME_H
 
-#define PLAYER_WIDTH_COEF 0.125
-#define PLAYER_HEIGHT_COEF 0.025
-#define BALL_WIDTH_COEF 0.05
-#define BALL_HEIGHT_COEF 0.05
+#define PLAYER_WIDTH 0.125
+#define PLAYER_HEIGHT 0.05
+#define BALL_WIDTH 0.05
+#define BALL_HEIGHT 0.05
 
 // FIXME: these are client only definitions
 #define DEFAULT_WINDOW_WIDTH 800
 #define DEFAULT_WINDOW_HEIGHT 600
 
+#include "rectangle.h"
+
 typedef struct Game {
   int state;
 
-  float player_x;
-  float player_dx;
+  Rectangle player;
+  Vec2 player_speed;
 
-  float ball_x;
-  float ball_y;
+  Rectangle ball;
+  Vec2 ball_speed;
 
-  float ball_dx;
-  float ball_dy;
-
-  int board_width;
-  int board_height;
+  Rectangle board;
 } Game;
 
 typedef enum {
