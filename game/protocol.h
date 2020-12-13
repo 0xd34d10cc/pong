@@ -3,13 +3,10 @@
 
 #include <stddef.h>
 
+#include "vec2.h"
+
 #define MAX_MESSAGE_SIZE 256
 #define MAX_PASSWORD_SIZE 32
-
-typedef struct Vec2 {
-  float x;
-  float y;
-} Vec2;
 
 typedef enum {
   ERROR_STATUS = 0xff,

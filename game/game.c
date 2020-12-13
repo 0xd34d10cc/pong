@@ -1,29 +1,30 @@
 #include "game.h"
 #include "bool.h"
 
-static int clamp(int x, int min, int max) {
+#define HIT_SPEED_INC 0.005
+
+static float clamp(float x, float min, float max) {
   if (x < min) return min;
   if (x > max) return max;
   return x;
 }
 
-static bool in_range(int x, int left, int right) {
-  return !(x < left || x > right);
-}
-
-static const int PLAYER_SPEED = 5;
-static const int BALL_SPEED = PLAYER_SPEED - 2;
+static const float PLAYER_SPEED = 0.015;
+static const float BALL_SPEED = PLAYER_SPEED/2;
 
 void game_init(Game* game, int board_width, int board_height) {
+  (void)board_width;
+  (void)board_height;
+
   game->state = STATE_RUNNING;
-  game->player_x = board_width / 2 - PLAYER_WIDTH / 2;
-  game->player_dx = 0;
-  game->ball_x = board_width / 2;
-  game->ball_y = board_height / 2;
-  game->ball_dx = BALL_SPEED;
-  game->ball_dy = BALL_SPEED;
-  game->board_width = board_width;
-  game->board_height = board_height;
+
+  game->player = (Rectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
+  game->player_speed = (Vec2) {0.0, 0.0};
+
+  game->ball = (Rectangle) {.position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT}};
+  game->ball_speed = (Vec2) {BALL_SPEED, BALL_SPEED};
+
+  game->board = (Rectangle) {.position = {-1.0, -1.0}, .size = {2, 2}};
 }
 
 GameState game_state(Game* game) {
@@ -31,29 +32,29 @@ GameState game_state(Game* game) {
 }
 
 void game_positions(Game* game, int* player, int* ball_x, int* ball_y) {
-  *player = game->player_x;
-  *ball_x = game->ball_x;
-  *ball_y = game->ball_y;
+  *player = (game->player.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
+  *ball_x = (game->ball.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
+  *ball_y = DEFAULT_WINDOW_HEIGHT - (game->ball.position.y + game->ball.size.y +1) * (DEFAULT_WINDOW_HEIGHT / 2) ;
 }
 
 void game_event(Game* game, Event event) {
   switch (event) {
     case EVENT_MOVE_LEFT:
-      game->player_dx = -PLAYER_SPEED;
+      game->player_speed.x = -PLAYER_SPEED;
       break;
     case EVENT_MOVE_RIGHT:
-      game->player_dx = PLAYER_SPEED;
+      game->player_speed.x = PLAYER_SPEED;
       break;
     case EVENT_RESTART:
       if (game->state == STATE_LOST) {
-          game_init(game, game->board_width, game->board_height);
+          game_init(game, game->board.size.x, game->board.size.y);
       }
       break;
   }
 }
 
 void game_step_begin(Game* game) {
-    game->player_dx = 0;
+    game->player_speed.x = 0;
 }
 
 void game_step_end(Game* game, int ms) {
@@ -66,43 +67,46 @@ void game_step_end(Game* game, int ms) {
   }
 
   // update state
-  int ball_right_bound = game->board_width - BALL_WIDTH;
-  int ball_low_bound = game->board_height - BALL_HEIGHT;
+  game->player.position = vec2_add(game->player.position, game->player_speed);
+  rect_clamp(&game->player, &game->board);
 
-  game->player_x = clamp(
-    game->player_x + game->player_dx,
-    0,
-    game->board_width - PLAYER_WIDTH
-  );
-  game->ball_x = clamp(game->ball_x + game->ball_dx, 0, ball_right_bound);
-  game->ball_y = clamp(game->ball_y + game->ball_dy, 0, ball_low_bound);
 
-  if (game->ball_y >= ball_low_bound) {
+  game->ball.position = vec2_add(game->ball.position, game->ball_speed);
+  if (game->ball.position.y < game->board.position.y) {
     game->state = STATE_LOST;
   }
 
-  if (game->ball_y <= 0) {
-    game->ball_dy = -game->ball_dy;
+  if (game->ball.position.y >= game->board.position.y + game->board.size.y) {
+    game->ball_speed.y = -game->ball_speed.y;
   }
 
   // floor/wall collisions
-  if (game->ball_x <= 0 || game->ball_x >= ball_right_bound) {
-    game->ball_dx = -game->ball_dx;
+  if (game->ball.position.x <= game->board.position.x ||
+      game->ball.position.x + game->ball.size.x >= game->board.position.x + game->board.size.x) {
+    game->ball_speed.x = -game->ball_speed.x;
   }
 
-  // player bar collisioon
-  int ball_bottom = game->ball_y + BALL_HEIGHT;
-  int player_top = game->board_height - PLAYER_HEIGHT;
-  if (in_range(ball_bottom, player_top, player_top + game->ball_dy) &&
-      in_range(game->ball_x,
-        game->player_x - BALL_WIDTH,
-        game->player_x + PLAYER_WIDTH + BALL_WIDTH)) {
-    game->ball_dy = -game->ball_dy;
-    game->ball_dy < 0 ? game->ball_dy-- : game->ball_dy++;
-    game->ball_dx < 0 ? game->ball_dx-- : game->ball_dx++;
+  bool curr_intersect = rect_intersect(&game->ball, &game->player);
+  Rectangle next_frame_ball = game->ball;
+  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball_speed);
+  bool next_intersect = rect_intersect(&next_frame_ball, &game->player);
 
-    if ((game->player_dx != 0) && (game->player_dx > 0) != (game->ball_dx > 0)) {
-      game->ball_dx = -game->ball_dx;
+  if (curr_intersect || next_intersect) {
+    game->ball_speed.y = -game->ball_speed.y;
+    if (game->ball_speed.y  < 0) {
+      game->ball_speed.y -= HIT_SPEED_INC;
+    } else {
+      game->ball_speed.y += HIT_SPEED_INC;
+    }
+
+    if (game->ball_speed.x < 0) {
+      game->ball_speed.x -= HIT_SPEED_INC;
+    } else {
+      game->ball_speed.x += HIT_SPEED_INC;
+    }
+
+    if ((game->player_speed.x != 0) && (game->player_speed.x > 0) != (game->ball_speed.x > 0)) {
+      game->ball_speed.x = -game->ball_speed.x;
     }
   }
 }
