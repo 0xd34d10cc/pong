@@ -53,6 +53,14 @@ int shader_compile(Shader* shader, VGL* table, const char* vertex_source, const 
   return 0;
 }
 
+AttributeID shader_uniform(Shader* shader, VGL* table, const char* name) {
+  return table->glGetUniformLocation(shader->program, name);
+}
+
+AttributeID shader_var(Shader* shader, VGL* table, const char* name) {
+  return table->glGetAttribLocation(shader->program, name);
+}
+
 void shader_release(Shader* shader, VGL* table) {
   table->glDetachShader(shader->program, shader->vertex);
   table->glDetachShader(shader->program, shader->fragment);

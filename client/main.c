@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
 
   Pong pong;
   if (pong_init(&pong, &params)) {
+    LOG_ERROR("Initialization failed");
     return EXIT_FAILURE;
   }
 
