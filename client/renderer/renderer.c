@@ -167,6 +167,7 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
+  // TODO: setup vertex/index buffers
   return 0;
 }
 
