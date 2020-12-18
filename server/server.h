@@ -40,6 +40,8 @@ typedef struct {
   Reactor reactor;
   TcpListener listener;
 
+  Evented timer;
+
   char connections_memory[POOL_CAPACITY(Connection, MAX_CONNECTIONS)];
   Pool connections;
 

@@ -57,6 +57,10 @@ void game_step_begin(Game* game) {
     game->player_speed.x = 0;
 }
 
+void game_set_player_speed(Game* game, Vec2 speed) {
+  game->player_speed = speed;
+}
+
 void game_step_end(Game* game, int ms) {
   // fixme: the code assumes ms == 16
   (void)ms;

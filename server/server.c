@@ -5,6 +5,7 @@
 #include <stdalign.h>
 
 #include <arpa/inet.h>
+#include <sys/timerfd.h>
 
 #include "log.h"
 #include "bool.h"
@@ -38,6 +39,9 @@ int server_init(Server* server, const char* ip, unsigned short port) {
     sizeof(Lobby), alignof(Lobby)
   );
 
+  int timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+
+  server->timer = (Evented){.fd = timer, .events = 0};
   LOG_INFO("Max connections: %d", pool_capacity(&server->connections));
   LOG_INFO("Max lobbies:     %d", pool_capacity(&server->lobbies));
   return 0;
@@ -134,6 +138,48 @@ static int server_create_lobby(Server* server, Connection* owner, CreateLobby* m
   response.id = LOBBY_CREATED;
   response.lobby_created.id = lobby_id;
   return send_message(owner, &response);
+}
+
+static int process_active_lobby(Lobby* lobby, int id) {
+  if (!lobby->owner || !lobby->guest) {
+    return 0;
+  }
+
+  // TODO: get rid of 16 after game_step_end refactoring
+  game_step_end(&lobby->game, 16);
+
+  if (lobby->game.state == STATE_LOST || lobby->game.state == STATE_WON) {
+    const char* state = lobby->game.state == STATE_LOST ? "lost" : "won";
+
+    LOG_INFO("In lobby #%d owner has %s", id, state);
+    ServerMessage msg;
+
+    msg.id = GAME_STATE_UPDATE;
+    msg.game_state_update.state = lobby->game.state;
+
+    if (send_message(lobby->guest, &msg) < 0) {
+      return -1;
+    }
+
+    if (send_message(lobby->owner, &msg) < 0) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static int server_process_active_lobbies(Server* server) {
+  for (Lobby* lobby = pool_first(&server->lobbies); lobby != NULL; lobby = pool_next(&server->lobbies, lobby)) {
+
+    int lobby_id = pool_index(&server->lobbies, lobby);
+    if (process_active_lobby(lobby, lobby_id) < 0) {
+      LOG_WARN("Failed to update lobby with #%d", lobby_id);
+    }
+  }
+
+  return 0;
+
 }
 
 static int server_join_lobby(Server* server, Connection* guest, JoinLobby* message) {
@@ -331,7 +377,21 @@ int server_run(Server* server) {
     return -1;
   }
 
+  struct itimerspec time = {.it_value = {.tv_sec = 1, .tv_nsec = 0},
+                            .it_interval = {.tv_sec = 0, .tv_nsec = 16 * 1000 * 1000}};
+
+  if (timerfd_settime(server->timer.fd, 0, &time, NULL) < 0) {
+    LOG_ERROR("Failed to set time for timer: %s", strerror(errno));
+    return -1;
+  }
+
+  if (reactor_register(&server->reactor, &server->timer, IO_EVENT_READ) < 0) {
+    LOG_ERROR("Failed to register the timer: %s", strerror(errno));
+    return -1;
+  }
+
   atomic_store(&server->running, true);
+
   IOEvent events[MAX_EVENTS];
   while (atomic_load(&server->running)) {
     int n_events = reactor_poll(&server->reactor, events, MAX_EVENTS, POLL_INTERVAL_MS);
@@ -346,7 +406,28 @@ int server_run(Server* server) {
 
     for (int i = 0; i < n_events;  ++i) {
       Evented* object = events[i].object;
-      if (object == &server->listener.state) {
+      if (object == &server->timer) {
+        while (true) {
+          uint64_t n_ticks = 0;
+
+          int res = read(server->timer.fd, &n_ticks, sizeof(n_ticks));
+
+          if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break;
+          }
+
+          if (res != sizeof(n_ticks)) {
+            LOG_ERROR("timer internal error: %s", strerror(errno));
+            return -1;
+          }
+
+        }
+        if (server_process_active_lobbies(server) < 0) {
+          return -1;
+        }
+      }
+
+      else if (object == &server->listener.state) {
         if (server_accept(server) < 0) {
           return -1;
         }

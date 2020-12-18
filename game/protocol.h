@@ -19,7 +19,8 @@ typedef enum {
   // server messages
   LOBBY_CREATED = 0x10,
   LOBBY_JOINED = 0x11,
-  SERVER_UPDATE = 0x12
+  SERVER_UPDATE = 0x12,
+  GAME_STATE_UPDATE = 0x13
 } MessageType;
 
 
