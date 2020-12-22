@@ -61,20 +61,12 @@ void game_set_player_speed(Game* game, Vec2 speed) {
   game->player_speed = speed;
 }
 
-void game_step_end(Game* game, int ms) {
-  // fixme: the code assumes ms == 16
-  (void)ms;
-
-  if (game->state == STATE_LOST) {
-      // no game logic for this state
-      return;
-  }
-
-  // update state
+void game_update_player_position(Game* game) {
   game->player.position = vec2_add(game->player.position, game->player_speed);
   rect_clamp(&game->player, &game->board);
+}
 
-
+void game_update_ball_position(Game* game) {
   game->ball.position = vec2_add(game->ball.position, game->ball_speed);
   if (game->ball.position.y < game->board.position.y) {
     game->state = STATE_LOST;
@@ -113,4 +105,20 @@ void game_step_end(Game* game, int ms) {
       game->ball_speed.x = -game->ball_speed.x;
     }
   }
+}
+
+
+void game_step_end(Game* game, int ms) {
+  // fixme: the code assumes ms == 16
+  (void)ms;
+
+  if (game->state == STATE_LOST) {
+      // no game logic for this state
+      return;
+  }
+
+  game_update_player_position(game);
+
+  game_update_ball_position(game);
+
 }

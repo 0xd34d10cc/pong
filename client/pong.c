@@ -350,16 +350,16 @@ void pong_run(Pong* pong) {
   pong->running = true;
 
   while (pong->running) {
+    // process events
+    game_step_begin(&pong->game);
+    pong_process_events(pong);
+    game_update_player_position(&pong->game);
+
+    // in network case ball position will be updated in pong_process_network
     if (pong->connection_state.state == LOCAL) {
-      // process events
-      game_step_begin(&pong->game);
-      pong_process_events(pong);
-      game_step_end(&pong->game, TICK_MS);
-    } else {
-      pong_process_events(pong);
-      // message will be sent in pong process network
+      game_update_ball_position(&pong->game);
     }
-    
+
     // render game state
     renderer_render(&pong->renderer, &pong->game);
 
