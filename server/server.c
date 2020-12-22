@@ -164,6 +164,28 @@ static int process_active_lobby(Lobby* lobby, int id) {
     if (send_message(lobby->owner, &msg) < 0) {
       return -1;
     }
+    return 0;
+  }
+
+  ServerMessage response;
+
+  response.id = SERVER_UPDATE;
+
+  response.server_update.ball_position.x = lobby->game.ball.position.x;
+  response.server_update.ball_position.y = lobby->game.ball.position.y;
+
+  response.server_update.opponent_position.x = lobby->game.player.position.x;
+  response.server_update.opponent_position.y = lobby->game.player.position.y;
+
+  if (send_message(lobby->guest, &response) < 0) {
+    return -1;
+  }
+
+  response.server_update.opponent_position.x = lobby->game.opponent.position.x;
+  response.server_update.opponent_position.y = lobby->game.opponent.position.y;
+
+  if (send_message(lobby->owner, &response) < 0) {
+    return -1;
   }
 
   return 0;
@@ -224,26 +246,14 @@ static int server_client_update(Server* server, Connection* player, ClientUpdate
     return send_error(player, INVALID_LOBBY_ID);
   }
 
-
-  ServerMessage response;
-
-  response.id = SERVER_UPDATE;
-  response.server_update.opponent_position.x = message->position.x;
-  response.server_update.opponent_position.y = message->position.y;
-
-  // FIXME: fill with actuall values when implemented
-  response.server_update.ball_position.x = 0;
-  response.server_update.ball_position.y = 0;
-
-  LOG_INFO("Dummy update has been sent");
-
-  if (player->lobby->owner == player) {
-    return send_message(player->lobby->guest, &response);
+  if(player->lobby->owner == player) {
+    player->lobby->game.player_speed = message->speed;
   }
   else {
-    return send_message(player->lobby->owner, &response);
+    player->lobby->game.opponent_speed = message->speed;
   }
 
+  return 0;
 }
 
 static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
@@ -377,6 +387,7 @@ int server_run(Server* server) {
     return -1;
   }
 
+  // TODO: wrap timer into something crossplatform and readable
   struct itimerspec time = {.it_value = {.tv_sec = 1, .tv_nsec = 0},
                             .it_interval = {.tv_sec = 0, .tv_nsec = 16 * 1000 * 1000}};
 

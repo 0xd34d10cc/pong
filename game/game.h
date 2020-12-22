@@ -18,6 +18,10 @@ typedef struct Game {
   Rectangle player;
   Vec2 player_speed;
 
+
+  Rectangle opponent;
+  Vec2 opponent_speed;
+
   Rectangle ball;
   Vec2 ball_speed;
 

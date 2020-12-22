@@ -124,6 +124,25 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       pong->game_session.state = WAITING_FOR_LOBBY;
       LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
       break;
+
+    case SERVER_UPDATE:
+      if (pong->game_session.state != PLAYING) {
+        pong->game_session.state = PLAYING;
+      }
+
+      pong->game.opponent.position.x = message->server_update.opponent_position.x;
+      pong->game.opponent.position.y = message->server_update.opponent_position.y;
+      pong->game.ball.position.x = message->server_update.ball_position.x;
+      pong->game.ball.position.y = message->server_update.ball_position.y;
+      break;
+
+    case GAME_STATE_UPDATE:
+      pong->game_session.state = message->game_state_update.state;
+      break;
+
+    default:
+      LOG_ERROR("invalid message received from server");
+      return -1;
   }
 
   return res;
@@ -234,7 +253,26 @@ static int prepare_client_message(Pong* pong) {
     case WAITING_FOR_LOBBY: {
       break;
     }
+    case PLAYING: {
+      msg.id = CLIENT_UPDATE;
+      msg.client_update.position = pong->game.player.position;
+      msg.client_update.speed = pong->game.player_speed;
 
+      int n = client_message_write(&msg, buf, sizeof(buf));
+
+      if (n == 0) {
+        return -1;
+      }
+
+      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+
+      if (send_res <= 0) {
+        LOG_WARN("Send operation failed with code: %d, msg %s", send_res, strerror(errno));
+        return -1;
+      }
+
+      break;
+    }
     default:
       PANIC("UNHANDLED GAME SESSION STATE: %d", pong->game_session.state);
   }
@@ -312,11 +350,16 @@ void pong_run(Pong* pong) {
   pong->running = true;
 
   while (pong->running) {
-    // process events
-    game_step_begin(&pong->game);
-    pong_process_events(pong);
-    game_step_end(&pong->game, TICK_MS);
-
+    if (pong->connection_state.state == LOCAL) {
+      // process events
+      game_step_begin(&pong->game);
+      pong_process_events(pong);
+      game_step_end(&pong->game, TICK_MS);
+    } else {
+      pong_process_events(pong);
+      // message will be sent in pong process network
+    }
+    
     // render game state
     renderer_render(&pong->renderer, &pong->game);
 
