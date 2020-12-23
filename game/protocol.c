@@ -67,6 +67,9 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
         READ(server_message->server_update.ball_position);
         READ(server_message->server_update.ball_speed);
         break;
+      case GAME_STATE_UPDATE:
+        READ(server_message->game_state_update.state);
+        break;
       default:
         return -1;
     }
@@ -154,6 +157,9 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
         WRITE(server_message->server_update.opponent_speed);
         WRITE(server_message->server_update.ball_position);
         WRITE(server_message->server_update.ball_speed);
+        break;
+      case GAME_STATE_UPDATE:
+        WRITE(server_message->game_state_update.state);
         break;
       default:
         PANIC("Unhandled message id: %d", server_message->id);

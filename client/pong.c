@@ -109,99 +109,6 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
-static int process_server_message(Pong* pong, ServerMessage* message) {
-  int res = 0;
-
-  switch (message->id) {
-    case LOBBY_CREATED:
-      pong->game_session.id = message->lobby_created.id;
-      pong->game_session.state = WAITING_FOR_LOBBY;
-      LOG_INFO("Game session with id: %d is received", pong->game_session.id);
-      break;
-
-    case LOBBY_JOINED:
-      strcpy(pong->game_session.opponent_ip, message->lobby_joined.ipv4);
-      pong->game_session.state = WAITING_FOR_LOBBY;
-      LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
-      break;
-
-    case SERVER_UPDATE:
-      if (pong->game_session.state != PLAYING) {
-        pong->game_session.state = PLAYING;
-      }
-
-      pong->game.opponent.position.x = message->server_update.opponent_position.x;
-      pong->game.opponent.position.y = message->server_update.opponent_position.y;
-      pong->game.ball.position.x = message->server_update.ball_position.x;
-      pong->game.ball.position.y = message->server_update.ball_position.y;
-      break;
-
-    case GAME_STATE_UPDATE:
-      pong->game_session.state = message->game_state_update.state;
-      break;
-
-    default:
-      LOG_ERROR("invalid message received from server");
-      return -1;
-  }
-
-  return res;
-}
-
-static int process_read(Pong* pong) {
-  while (true) {
-    int n = tcp_recv(&pong->tcp_stream);
-
-    if (n == 0) {
-      LOG_WARN("disconnect received");
-      return -1;
-    }
-
-    if (n < 0) {
-      LOG_WARN("recv failed: %s", strerror(errno));
-      return -1;
-    }
-
-    bool more_to_read = false;
-    int offset = 0;
-    while (true) {
-      ServerMessage message;
-
-      int msg_size = server_message_read(&message, pong->tcp_stream.input + offset,
-          pong->tcp_stream.received - offset);
-
-      if (msg_size < 0) {
-        LOG_WARN("Invalid message received from server");
-        return -1;
-      }
-
-      if (msg_size == 0) {
-        LOG_INFO("Not enough data to parse message");
-        break;
-      }
-
-      process_server_message(pong, &message);
-
-      offset += msg_size;
-
-      if (offset == pong->tcp_stream.received) {
-        break;
-      }
-    }
-
-    tcp_consume(&pong->tcp_stream, offset);
-
-    if (pong->tcp_stream.received == sizeof(pong->tcp_stream.input)) {
-      more_to_read = true;
-    }
-
-    if (!more_to_read) {
-      break;
-    }
-  }
-
-  return 0;
-}
 
 static int prepare_client_message(Pong* pong) {
   ClientMessage msg = {0};
@@ -280,6 +187,104 @@ static int prepare_client_message(Pong* pong) {
   return 0;
 }
 
+static int process_server_message(Pong* pong, ServerMessage* message) {
+  int res = 0;
+
+  switch (message->id) {
+    case LOBBY_CREATED:
+      pong->game_session.id = message->lobby_created.id;
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      LOG_INFO("Game session with id: %d is received", pong->game_session.id);
+      break;
+
+    case LOBBY_JOINED:
+      strcpy(pong->game_session.opponent_ip, message->lobby_joined.ipv4);
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
+      break;
+
+    case SERVER_UPDATE:
+      if (pong->game_session.state != PLAYING) {
+        LOG_INFO("got server update");
+        pong->game_session.state = PLAYING;
+      }
+
+      pong->game.opponent.position.x = message->server_update.opponent_position.x;
+      pong->game.opponent.position.y = message->server_update.opponent_position.y;
+      pong->game.ball.position.x = message->server_update.ball_position.x;
+      pong->game.ball.position.y = message->server_update.ball_position.y;
+
+      prepare_client_message(pong);
+      break;
+
+    case GAME_STATE_UPDATE:
+      pong->game_session.state = message->game_state_update.state;
+      break;
+
+    default:
+      LOG_ERROR("invalid message received from server");
+      return -1;
+  }
+
+  return res;
+}
+
+static int process_read(Pong* pong) {
+  while (true) {
+    int n = tcp_recv(&pong->tcp_stream);
+
+    if (n == 0) {
+      LOG_WARN("disconnect received");
+      return -1;
+    }
+
+    if (n < 0) {
+      LOG_WARN("recv failed: %s", strerror(errno));
+      return -1;
+    }
+
+    bool more_to_read = false;
+    int offset = 0;
+    while (true) {
+      ServerMessage message;
+
+      int msg_size = server_message_read(&message, pong->tcp_stream.input + offset,
+          pong->tcp_stream.received - offset);
+
+      if (msg_size < 0) {
+        LOG_WARN("Invalid message received from server");
+        return -1;
+      }
+
+      if (msg_size == 0) {
+        LOG_INFO("Not enough data to parse message");
+        break;
+      }
+
+      process_server_message(pong, &message);
+
+      offset += msg_size;
+
+      if (offset == pong->tcp_stream.received) {
+        break;
+      }
+    }
+
+    tcp_consume(&pong->tcp_stream, offset);
+
+    if (pong->tcp_stream.received == sizeof(pong->tcp_stream.input)) {
+      more_to_read = true;
+    }
+
+    if (!more_to_read) {
+      break;
+    }
+  }
+
+  return 0;
+}
+
+
 static int pong_process_network(Pong* pong, int timeout_ms) {
   unsigned now = SDL_GetTicks();
   unsigned deadline = now + timeout_ms;
@@ -328,7 +333,6 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
 
         pong->connection_state.state = CONNECTED;
       }
-
       prepare_client_message(pong);
 
 
