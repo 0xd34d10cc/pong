@@ -21,6 +21,9 @@ void game_init(Game* game, int board_width, int board_height) {
   game->player = (Rectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
   game->player_speed = (Vec2) {0.0, 0.0};
 
+  game->opponent = (Rectangle) { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
+  game->opponent_speed = (Vec2) {0.0, 0.0};
+
   game->ball = (Rectangle) {.position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT}};
   game->ball_speed = (Vec2) {BALL_SPEED, BALL_SPEED};
 
@@ -31,8 +34,9 @@ GameState game_state(Game* game) {
   return game->state;
 }
 
-void game_positions(Game* game, int* player, int* ball_x, int* ball_y) {
+void game_positions(Game* game, int* player, int* opponent, int* ball_x, int* ball_y) {
   *player = (game->player.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
+  *opponent = (game->opponent.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
   *ball_x = (game->ball.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
   *ball_y = DEFAULT_WINDOW_HEIGHT - (game->ball.position.y + game->ball.size.y +1) * (DEFAULT_WINDOW_HEIGHT / 2) ;
 }
@@ -66,6 +70,33 @@ void game_update_player_position(Game* game) {
   rect_clamp(&game->player, &game->board);
 }
 
+// TODO: Rewrite all rectangles + speed to something like GameObject {Rectangle; Speed}
+static void process_player_hit(Game* game, Rectangle* player, Vec2 player_speed) {
+  bool curr_intersect = rect_intersect(&game->ball, player);
+  Rectangle next_frame_ball = game->ball;
+  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball_speed);
+  bool next_intersect = rect_intersect(&next_frame_ball, player);
+
+  if (curr_intersect || next_intersect) {
+    game->ball_speed.y = -game->ball_speed.y;
+    if (game->ball_speed.y  < 0) {
+      game->ball_speed.y -= HIT_SPEED_INC;
+    } else {
+      game->ball_speed.y += HIT_SPEED_INC;
+    }
+
+    if (game->ball_speed.x < 0) {
+      game->ball_speed.x -= HIT_SPEED_INC;
+    } else {
+      game->ball_speed.x += HIT_SPEED_INC;
+    }
+
+    if ((player_speed.x != 0) && (player_speed.x > 0) != (game->ball_speed.x > 0)) {
+      game->ball_speed.x = -game->ball_speed.x;
+    }
+  }
+}
+
 void game_update_ball_position(Game* game) {
   game->ball.position = vec2_add(game->ball.position, game->ball_speed);
   if (game->ball.position.y < game->board.position.y) {
@@ -82,29 +113,8 @@ void game_update_ball_position(Game* game) {
     game->ball_speed.x = -game->ball_speed.x;
   }
 
-  bool curr_intersect = rect_intersect(&game->ball, &game->player);
-  Rectangle next_frame_ball = game->ball;
-  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball_speed);
-  bool next_intersect = rect_intersect(&next_frame_ball, &game->player);
-
-  if (curr_intersect || next_intersect) {
-    game->ball_speed.y = -game->ball_speed.y;
-    if (game->ball_speed.y  < 0) {
-      game->ball_speed.y -= HIT_SPEED_INC;
-    } else {
-      game->ball_speed.y += HIT_SPEED_INC;
-    }
-
-    if (game->ball_speed.x < 0) {
-      game->ball_speed.x -= HIT_SPEED_INC;
-    } else {
-      game->ball_speed.x += HIT_SPEED_INC;
-    }
-
-    if ((game->player_speed.x != 0) && (game->player_speed.x > 0) != (game->ball_speed.x > 0)) {
-      game->ball_speed.x = -game->ball_speed.x;
-    }
-  }
+  process_player_hit(game, &game->player, game->player_speed);
+  process_player_hit(game, &game->opponent, game->opponent_speed);
 }
 
 
