@@ -172,7 +172,7 @@ static int process_active_lobby(Lobby* lobby, int id) {
   response.id = SERVER_UPDATE;
 
   response.server_update.ball_position.x = lobby->game.ball.position.x;
-  response.server_update.ball_position.y = lobby->game.ball.position.y;
+  response.server_update.ball_position.y = -1 * lobby->game.ball.position.y;
 
   response.server_update.opponent_position.x = lobby->game.player.position.x;
   response.server_update.opponent_position.y = -1 * lobby->game.player.position.y;
@@ -181,6 +181,7 @@ static int process_active_lobby(Lobby* lobby, int id) {
     return -1;
   }
 
+  response.server_update.ball_position.y = lobby->game.ball.position.y;
   response.server_update.opponent_position.x = lobby->game.opponent.position.x;
   response.server_update.opponent_position.y = -1 * lobby->game.opponent.position.y;
 

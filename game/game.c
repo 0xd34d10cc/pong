@@ -68,6 +68,9 @@ void game_set_player_speed(Game* game, Vec2 speed) {
 void game_update_player_position(Game* game) {
   game->player.position = vec2_add(game->player.position, game->player_speed);
   rect_clamp(&game->player, &game->board);
+
+  game->opponent.position = vec2_add(game->opponent.position, game->opponent_speed);
+  rect_clamp(&game->opponent, &game->board);
 }
 
 // TODO: Rewrite all rectangles + speed to something like GameObject {Rectangle; Speed}
