@@ -106,8 +106,8 @@ void game_update_ball_position(Game* game) {
     game->state = STATE_LOST;
   }
 
-  if (game->ball.position.y >= game->board.position.y + game->board.size.y) {
-    game->ball_speed.y = -game->ball_speed.y;
+  if (game->ball.position.y > game->board.position.y + game->board.size.y) {
+    game->state = STATE_WON;
   }
 
   // floor/wall collisions
@@ -125,7 +125,7 @@ void game_step_end(Game* game, int ms) {
   // fixme: the code assumes ms == 16
   (void)ms;
 
-  if (game->state == STATE_LOST) {
+  if (game->state == STATE_LOST || game->state == STATE_WON) {
       // no game logic for this state
       return;
   }

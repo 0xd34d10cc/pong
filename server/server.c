@@ -145,6 +145,10 @@ static int process_active_lobby(Lobby* lobby, int id) {
     return 0;
   }
 
+  if (lobby->game.state != STATE_RUNNING) {
+    return 0; 
+  } 
+
   // TODO: get rid of 16 after game_step_end refactoring
   game_step_end(&lobby->game, 16);
 
@@ -157,13 +161,16 @@ static int process_active_lobby(Lobby* lobby, int id) {
     msg.id = GAME_STATE_UPDATE;
     msg.game_state_update.state = lobby->game.state;
 
-    if (send_message(lobby->guest, &msg) < 0) {
-      return -1;
-    }
 
     if (send_message(lobby->owner, &msg) < 0) {
       return -1;
     }
+
+    msg.game_state_update.state = lobby->game.state == STATE_LOST ? STATE_WON : STATE_LOST;
+    if (send_message(lobby->guest, &msg) < 0) {
+      return -1;
+    }
+
     return 0;
   }
 

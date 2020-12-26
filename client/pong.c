@@ -205,7 +205,7 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
 
     case SERVER_UPDATE:
       if (pong->game_session.state != PLAYING) {
-        LOG_INFO("got server update");
+        LOG_INFO("Got first server update, change game_session.state to playing");
         pong->game_session.state = PLAYING;
       }
 
@@ -218,7 +218,7 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       break;
 
     case GAME_STATE_UPDATE:
-      pong->game_session.state = message->game_state_update.state;
+      pong->game.state = message->game_state_update.state;
       break;
 
     default:

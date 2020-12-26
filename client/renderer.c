@@ -5,6 +5,23 @@
 #include <SDL2/SDL_render.h>
 
 
+static int load_image_texture(Renderer* renderer, SDL_Surface** surface, SDL_Texture** texture, const char* image_path) {
+
+  *surface = SDL_LoadBMP(image_path);
+  if (!*surface) {
+    LOG_ERROR("Failed to load loser image: %s", SDL_GetError());
+    return -1;
+  }
+
+  *texture = SDL_CreateTextureFromSurface(renderer->backend, *surface);
+  if (!*texture) {
+    LOG_ERROR("Failed to create texture: %s", SDL_GetError());
+    return -1;
+  }
+
+  return 0;
+}
+
 int renderer_init(Renderer* renderer, SDL_Window* window) {
   int flags = SDL_RENDERER_ACCELERATED;
   renderer->backend = SDL_CreateRenderer(window, -1 /* any gpu */, flags);
@@ -13,16 +30,11 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
-  // TODO: embed the image into binary
-  renderer->lost_image = SDL_LoadBMP("resources/lose.bmp");
-  if (!renderer->lost_image) {
-    LOG_ERROR("Failed to load loser image: %s", SDL_GetError());
+  // TODO: embed images into binary
+  if (load_image_texture(renderer, &renderer->lost_image, &renderer->lost_texture, "resources/lose.bmp") != 0) {
     return -1;
   }
-
-  renderer->lost_texture = SDL_CreateTextureFromSurface(renderer->backend, renderer->lost_image);
-  if (!renderer->lost_texture) {
-    LOG_ERROR("Failed to create texture: %s", SDL_GetError());
+  if (load_image_texture(renderer, &renderer->won_image, &renderer->won_texture, "resources/won.bmp") != 0) {
     return -1;
   }
 
@@ -37,6 +49,10 @@ void renderer_close(Renderer* renderer) {
 
 static void render_lost(Renderer* renderer) {
   SDL_RenderCopy(renderer->backend, renderer->lost_texture, NULL, NULL);
+}
+
+static void render_won(Renderer* renderer) {
+    SDL_RenderCopy(renderer->backend, renderer->won_texture, NULL, NULL);
 }
 
 static void render_running(Renderer* renderer, Game* game) {
@@ -82,7 +98,7 @@ void renderer_render(Renderer* renderer, Game* game) {
       render_running(renderer, game);
       break;
     case STATE_WON:
-      // TODO: render
+      render_won(renderer);
       break;
   }
 
