@@ -4,8 +4,6 @@
 
 #include "pong.h"
 #include "log.h"
-#include "menu.h"
-
 
 int main(int argc, char* argv[]) {
   (void)argc;

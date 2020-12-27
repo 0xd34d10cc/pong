@@ -109,6 +109,21 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
+static int prepare_and_send(Pong* pong, const ClientMessage* msg, char* buf, int capacity) {
+  int n = client_message_write(msg, buf, capacity);
+
+  if (n == 0) {
+    return -1;
+  }
+
+  int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+  if (send_res <= 0) {
+    LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
 
 static int prepare_client_message(Pong* pong) {
   ClientMessage msg = {0};
@@ -118,20 +133,9 @@ static int prepare_client_message(Pong* pong) {
     case NOT_IN_LOBBY:
       msg.id = CREATE_LOBBY;
       strcpy(msg.create_lobby.password, pong->game_session.password);
-
-      int n = client_message_write(&msg, buf, sizeof(buf));
-
-      if (n == 0) {
-        return -1;
-      }
       LOG_INFO("Sending Create Lobby with pw: %s", msg.create_lobby.password);
-      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
 
-      if (send_res <= 0) {
-        LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
-        return -1;
-      }
-
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
       pong->game_session.state = WAITING_FOR_LOBBY;
       break;
 
@@ -139,20 +143,9 @@ static int prepare_client_message(Pong* pong) {
       msg.id = JOIN_LOBBY;
       msg.join_lobby.id = pong->game_session.id;
       strcpy(msg.join_lobby.password, pong->game_session.password);
-      int n = client_message_write(&msg, buf, sizeof(buf));
-
-      if (n == 0) {
-        return -1;
-      }
-
       LOG_INFO("Sending Join Lobby with id: %d and password: %s", msg.join_lobby.id, msg.join_lobby.password);
-      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
 
-      if (send_res <= 0) {
-        LOG_WARN("Send operation failed with code: %d, msg %s", send_res, strerror(errno));
-        return -1;
-      }
-
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
       pong->game_session.state = WAITING_FOR_LOBBY;
       break;
 
@@ -165,19 +158,7 @@ static int prepare_client_message(Pong* pong) {
       msg.client_update.position = pong->game.player.position;
       msg.client_update.speed = pong->game.player_speed;
 
-      int n = client_message_write(&msg, buf, sizeof(buf));
-
-      if (n == 0) {
-        return -1;
-      }
-
-      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
-
-      if (send_res <= 0) {
-        LOG_WARN("Send operation failed with code: %d, msg %s", send_res, strerror(errno));
-        return -1;
-      }
-
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
       break;
     }
     default:
