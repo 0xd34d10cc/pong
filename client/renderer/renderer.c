@@ -77,20 +77,29 @@ typedef struct {
 
 static_assert(20 == sizeof(Vertex), "Unexpected padding in Vertex");
 
+static AttributeID attribute_id(Renderer* renderer, const char* name) {
+  AttributeID id = shader_var(&renderer->shader, &renderer->vgl, name);
+  if (id == -1) {
+    LOG_ERROR("No such attribute in shader: %s", name);
+  }
+  return id;
+}
+
 static bool renderer_init_shader(Renderer* renderer) {
   // A program that runs on GPU for each vertex
   // It determines the color of vertices and their mappings to texture (if any)
   const char* vertex_shader =
     "#version 300 es\n"
     "uniform mat4 projection;\n"
-    "in vec2 pos;\n"
-    "in vec2 uv;\n"
-    "in vec4 color;\n"
+    "in vec2 in_pos;\n"
+    "in vec2 in_uv;\n"
+    "in vec4 in_color;\n"
     "out vec2 pixel_uv;\n"
     "out vec4 pixel_color;\n"
     "void main() {\n"
-    "  pixel_uv = uv;\n"
-    "  pixel_color = projection * vec4(pos.xy, 0, 1);\n"
+    "  pixel_uv = in_uv;\n"
+    "  pixel_color = in_color;\n"
+    "  gl_Position = projection * vec4(in_pos.xy, 0, 1);\n"
     "}\n";
 
   // A program that runs on GPU for each pixel
@@ -111,12 +120,19 @@ static bool renderer_init_shader(Renderer* renderer) {
     return false;
   }
 
-  renderer->attributes.pos   = shader_var(&renderer->shader, &renderer->vgl, "pos");
-  renderer->attributes.uv    = shader_var(&renderer->shader, &renderer->vgl, "uv");
-  renderer->attributes.color = shader_var(&renderer->shader, &renderer->vgl, "color");
+  renderer->attributes.pos   = attribute_id(renderer, "in_pos");
+  renderer->attributes.uv    = attribute_id(renderer, "in_uv");
+  renderer->attributes.color = attribute_id(renderer, "in_color");
+
+  if (renderer->attributes.pos == -1 || renderer->attributes.uv == -1 || renderer->attributes.color == -1) {
+    return false;
+  }
 
   renderer->attributes.projection = shader_uniform(&renderer->shader, &renderer->vgl, "projection");
   renderer->attributes.texture    = shader_uniform(&renderer->shader, &renderer->vgl, "tex");
+
+  // TODO: check that uniform variables were found
+
   return true;
 }
 
@@ -153,6 +169,39 @@ static bool renderer_init_context(Renderer* renderer, SDL_Window* window) {
   return true;
 }
 
+static bool renderer_setup_buffers(Renderer* renderer) {
+  // TODO: check errors?
+  ObjectID vertex_array;
+  ObjectID vertices;
+  ObjectID indices;
+
+  renderer->vgl.glGenVertexArrays(1, &vertex_array);
+  renderer->vgl.glGenBuffers(1, &vertices);
+  renderer->vgl.glGenBuffers(1, &indices);
+
+  renderer->vgl.glBindVertexArray(vertex_array);
+  renderer->vgl.glBindBuffer(GL_ARRAY_BUFFER, vertices);
+  renderer->vgl.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+
+  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.pos);
+  renderer->vgl.glVertexAttribPointer(renderer->attributes.pos, 2, GL_FLOAT, GL_FALSE,
+                                      sizeof(Vertex), (const void*)offsetof(Vertex, position));
+
+  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.uv);
+  renderer->vgl.glVertexAttribPointer(renderer->attributes.uv, 2, GL_FLOAT, GL_FALSE,
+                                      sizeof(Vertex), (const void*)offsetof(Vertex, uv));
+
+  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.color);
+  renderer->vgl.glVertexAttribPointer(renderer->attributes.color, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+                                      sizeof(Vertex), (const void*)offsetof(Vertex, color));
+
+  renderer->vertex_array = vertex_array;
+  renderer->vertices = vertices;
+  renderer->indices = indices;
+
+  return true;
+}
+
 int renderer_init(Renderer* renderer, SDL_Window* window) {
   if (!renderer_init_context(renderer, window)) {
     return -1;
@@ -164,14 +213,32 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
   }
 
   if (!renderer_init_shader(renderer)) {
+    LOG_ERROR("Failed to initialize shader");
     return -1;
   }
 
-  // TODO: setup vertex/index buffers
+  if (!renderer_setup_buffers(renderer)) {
+    LOG_ERROR("Failed to initialize vertex buffers");
+    return -1;
+  }
+
+  // TODO
+  // if (!renderer_load_textures(renderer)) {
+  //    ...
+  // }
+
   return 0;
 }
 
+static void renderer_release_buffers(Renderer* renderer) {
+  renderer->vgl.glDeleteBuffers(1, &renderer->indices);
+  renderer->vgl.glDeleteBuffers(1, &renderer->vertices);
+  renderer->vgl.glDeleteVertexArrays(1, &renderer->vertex_array);
+}
+
 void renderer_close(Renderer* renderer) {
+  renderer_release_buffers(renderer);
+  shader_release(&renderer->shader, &renderer->vgl);
   SDL_GL_DeleteContext(renderer->context);
 }
 

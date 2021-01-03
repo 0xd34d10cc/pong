@@ -31,9 +31,9 @@ typedef struct {
   Shader     shader;
   Attributes attributes; // shader attributes
 
-  ObjectID vertex_array;  // array of vertices buffers
-  ObjectID vertices;      // actual vertex data (positions, texture mappings, colors)
-  ObjectID indices;       // information about order of rendering of vertices
+  ObjectID vertex_array; // array of buffer objects
+  ObjectID vertices;     // actual vertex data (positions, texture mappings, colors)
+  ObjectID indices;      // information about order of rendering of vertices
 } Renderer;
 
 // returns 0 on success

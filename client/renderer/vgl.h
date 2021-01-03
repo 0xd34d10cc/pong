@@ -38,6 +38,23 @@ typedef struct VGL {
   PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
   // Get ID of attribute (unique to each compute unit) variable
   PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+
+  // Allocate new vertex arrays (array of vertex buffers, aka vao)
+  PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+  // Delete vertex arrays
+  PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+  // Allocate new vertex buffers (aka vbo)
+  PFNGLGENBUFFERSPROC glGenBuffers;
+  // Delete vertex buffers
+  PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+  // Set vertex array as "current"
+  PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+  // Set vertex buffer as "current"
+  PFNGLBINDBUFFERPROC glBindBuffer;
+  // Bind shader attribute to "current" vertex array
+  PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+  // Set offset for shader attribute at which the value is located
+  PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 } VGL;
 
 int vgl_load(VGL* table);

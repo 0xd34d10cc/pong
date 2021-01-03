@@ -28,5 +28,15 @@ int vgl_load(VGL* table) {
 
   TRY_LOAD(glGetUniformLocation);
   TRY_LOAD(glGetAttribLocation);
+
+  TRY_LOAD(glGenVertexArrays);
+  TRY_LOAD(glDeleteVertexArrays);
+  TRY_LOAD(glGenBuffers);
+  TRY_LOAD(glDeleteBuffers);
+  TRY_LOAD(glBindVertexArray);
+  TRY_LOAD(glBindBuffer);
+  TRY_LOAD(glEnableVertexAttribArray);
+  TRY_LOAD(glVertexAttribPointer);
+
   return 0;
 }
