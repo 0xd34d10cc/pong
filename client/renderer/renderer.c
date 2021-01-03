@@ -137,6 +137,8 @@ static bool renderer_init_shader(Renderer* renderer) {
 }
 
 static bool renderer_init_context(Renderer* renderer, SDL_Window* window) {
+  renderer->window = window;
+
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -255,7 +257,10 @@ static void render_running(Renderer* renderer, Game* game) {
 
 void renderer_render(Renderer* renderer, Game* game) {
   // clear screen
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
 
+  // render everything
   switch (game_state(game)) {
     case STATE_LOST:
       render_lost(renderer);
@@ -268,5 +273,6 @@ void renderer_render(Renderer* renderer, Game* game) {
       break;
   }
 
-  // swap
+  // present the new frame
+  SDL_GL_SwapWindow(renderer->window);
 }

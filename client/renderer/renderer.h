@@ -25,6 +25,7 @@ typedef struct {
 } Attributes;
 
 typedef struct {
+  SDL_Window* window;
   SDL_GLContext* context;
   VGL vgl;
 
