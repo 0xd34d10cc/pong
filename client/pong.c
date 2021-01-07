@@ -158,7 +158,6 @@ static int prepare_client_message(Pong* pong) {
       msg.client_update.position = pong->game.player.position;
       msg.client_update.speed = pong->game.player_speed;
 
-      prepare_and_send(pong, &msg, buf, sizeof(buf));
       break;
     }
     default:
@@ -195,7 +194,6 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       pong->game.ball.position.x = message->server_update.ball_position.x;
       pong->game.ball.position.y = message->server_update.ball_position.y;
 
-      prepare_client_message(pong);
       break;
 
     case GAME_STATE_UPDATE:
@@ -269,6 +267,7 @@ static int process_read(Pong* pong) {
 static int pong_process_network(Pong* pong, int timeout_ms) {
   unsigned now = SDL_GetTicks();
   unsigned deadline = now + timeout_ms;
+  prepare_client_message(pong);
 
   while (now < deadline) {
     unsigned time_left = deadline - now;
@@ -314,8 +313,6 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
 
         pong->connection_state.state = CONNECTED;
       }
-      prepare_client_message(pong);
-
 
       if(tcp_send(&pong->tcp_stream) == -1) {
         LOG_WARN("tcp_send failed: %s", strerror(errno));
@@ -353,6 +350,7 @@ void pong_run(Pong* pong) {
       SDL_Delay(TICK_MS);
     }
     else {
+
       pong_process_network(pong, TICK_MS);
     }
   }
