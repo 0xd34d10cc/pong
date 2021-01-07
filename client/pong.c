@@ -201,7 +201,7 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       break;
 
     default:
-      LOG_ERROR("invalid message received from server");
+      LOG_ERROR("invalid message received from server. Msg id is: %d", message->id);
       return -1;
   }
 
