@@ -236,30 +236,6 @@ void renderer_close(Renderer* renderer) {
   SDL_GL_DeleteContext(renderer->context);
 }
 
-static void render_lost(Renderer* renderer) {
-  (void)renderer;
-  // draw lose screen
-}
-
-static void render_running(Renderer* renderer, Game* game) {
-  (void)renderer;
-  (void)game;
-  // draw player, ball and opponent
-}
-
-static void renderer_clear(Renderer* renderer) {
-  (void)renderer;
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
-}
-
-static void renderer_present(Renderer* renderer) {
-  // for (RenderCommand* cmd = render_queue_begin(renderer->queue), ...)
-  //    renderer_execute(cmd)
-
-  SDL_GL_SwapWindow(renderer->window);
-}
-
 static void render_rectangle(Renderer* renderer, Rectangle rect) {
   float x = rect.position.x;
   float y = rect.position.y;
@@ -300,14 +276,31 @@ static void render_rectangle(Renderer* renderer, Rectangle rect) {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
+static void render_lost(Renderer* renderer) {
+  (void)renderer;
+  // draw lose screen
+}
+
+static void render_running(Renderer* renderer, Game* game) {
+  render_rectangle(renderer, game->player);
+  render_rectangle(renderer, game->ball);
+}
+
+static void renderer_clear(Renderer* renderer) {
+  (void)renderer;
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+}
+
+static void renderer_present(Renderer* renderer) {
+  // for (RenderCommand* cmd = render_queue_begin(renderer->queue), ...)
+  //    renderer_execute(cmd)
+
+  SDL_GL_SwapWindow(renderer->window);
+}
+
 void renderer_render(Renderer* renderer, Game* game) {
   renderer_clear(renderer);
-
-  Rectangle rect = {
-    .position = {-0.5, -0.5},
-    .size = {1.0, 1.0}
-  };
-  render_rectangle(renderer, rect);
 
   // render everything
   switch (game_state(game)) {
