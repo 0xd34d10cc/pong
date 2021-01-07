@@ -77,11 +77,15 @@ typedef struct {
 
 static_assert(20 == sizeof(Vertex), "Unexpected padding in Vertex");
 
-static AttributeID attribute_id(Renderer* renderer, const char* name) {
-  AttributeID id = shader_var(&renderer->shader, &renderer->vgl, name);
+static AttributeID var_id(Renderer* renderer, const char* name, bool is_uniform) {
+  AttributeID id = is_uniform ? shader_uniform(&renderer->shader, name)
+                              : shader_var(&renderer->shader, name);
   if (id == -1) {
-    LOG_ERROR("No such attribute in shader: %s", name);
+    const char* uniform = is_uniform ? " uniform" : "";
+    LOG_ERROR("No%s variable named \"%s\" in shader", uniform, name);
+    return -1;
   }
+
   return id;
 }
 
@@ -115,23 +119,28 @@ static bool renderer_init_shader(Renderer* renderer) {
     "  out_color = pixel_color * texture(tex, pixel_uv.st);\n"
     "}\n";
 
-  if (shader_compile(&renderer->shader, &renderer->vgl, vertex_shader, pixel_shader) < 0) {
+  if (shader_compile(&renderer->shader, vertex_shader, pixel_shader) < 0) {
     // The error is logged in shader_compile()
     return false;
   }
 
-  renderer->attributes.pos   = attribute_id(renderer, "in_pos");
-  renderer->attributes.uv    = attribute_id(renderer, "in_uv");
-  renderer->attributes.color = attribute_id(renderer, "in_color");
+  renderer->attributes.pos   = var_id(renderer, "in_pos", false);
+  renderer->attributes.uv    = var_id(renderer, "in_uv", false);
+  renderer->attributes.color = var_id(renderer, "in_color", false);
 
-  if (renderer->attributes.pos == -1 || renderer->attributes.uv == -1 || renderer->attributes.color == -1) {
+  if (renderer->attributes.pos == -1 ||
+      renderer->attributes.uv == -1 ||
+      renderer->attributes.color == -1) {
     return false;
   }
 
-  renderer->attributes.projection = shader_uniform(&renderer->shader, &renderer->vgl, "projection");
-  renderer->attributes.texture    = shader_uniform(&renderer->shader, &renderer->vgl, "tex");
+  renderer->attributes.projection = var_id(renderer, "projection", true);
+  renderer->attributes.texture    = var_id(renderer, "tex", true);
 
-  // TODO: check that uniform variables were found
+  if (renderer->attributes.projection == -1 ||
+      renderer->attributes.texture == -1) {
+    return false;
+  }
 
   return true;
 }
@@ -165,41 +174,40 @@ static bool renderer_init_context(Renderer* renderer, SDL_Window* window) {
     set_debug_callback(opengl_debug_log, NULL);
   }
   else {
-    LOG_WARN("[GL] Failed to initialize debug logging");
+    LOG_WARN("Failed to initialize OpenGL debug logging");
   }
 #endif
   return true;
 }
 
-static bool renderer_setup_buffers(Renderer* renderer) {
-  // TODO: check errors?
+static int MAX_VERTICES = 4096;
+static int MAX_INDICES = 4096;
+
+static bool renderer_init_buffers(Renderer* renderer) {
+  vertex_buffer_init(&renderer->vertices, sizeof(Vertex) * MAX_VERTICES);
+  vertex_buffer_bind(&renderer->vertices);
+
+  index_buffer_init(&renderer->indices, sizeof(unsigned int) * MAX_INDICES);
+  index_buffer_bind(&renderer->indices);
+
+  // TODO: abstract
   ObjectID vertex_array;
-  ObjectID vertices;
-  ObjectID indices;
+  vgl.glGenVertexArrays(1, &vertex_array);
+  vgl.glBindVertexArray(vertex_array);
 
-  renderer->vgl.glGenVertexArrays(1, &vertex_array);
-  renderer->vgl.glGenBuffers(1, &vertices);
-  renderer->vgl.glGenBuffers(1, &indices);
+  vgl.glEnableVertexAttribArray(renderer->attributes.pos);
+  vgl.glVertexAttribPointer(renderer->attributes.pos, 2, GL_FLOAT, GL_FALSE,
+                           sizeof(Vertex), (const void*)offsetof(Vertex, position));
 
-  renderer->vgl.glBindVertexArray(vertex_array);
-  renderer->vgl.glBindBuffer(GL_ARRAY_BUFFER, vertices);
-  renderer->vgl.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+  vgl.glEnableVertexAttribArray(renderer->attributes.uv);
+  vgl.glVertexAttribPointer(renderer->attributes.uv, 2, GL_FLOAT, GL_FALSE,
+                            sizeof(Vertex), (const void*)offsetof(Vertex, uv));
 
-  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.pos);
-  renderer->vgl.glVertexAttribPointer(renderer->attributes.pos, 2, GL_FLOAT, GL_FALSE,
-                                      sizeof(Vertex), (const void*)offsetof(Vertex, position));
-
-  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.uv);
-  renderer->vgl.glVertexAttribPointer(renderer->attributes.uv, 2, GL_FLOAT, GL_FALSE,
-                                      sizeof(Vertex), (const void*)offsetof(Vertex, uv));
-
-  renderer->vgl.glEnableVertexAttribArray(renderer->attributes.color);
-  renderer->vgl.glVertexAttribPointer(renderer->attributes.color, 4, GL_UNSIGNED_BYTE, GL_TRUE,
-                                      sizeof(Vertex), (const void*)offsetof(Vertex, color));
+  vgl.glEnableVertexAttribArray(renderer->attributes.color);
+  vgl.glVertexAttribPointer(renderer->attributes.color, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+                            sizeof(Vertex), (const void*)offsetof(Vertex, color));
 
   renderer->vertex_array = vertex_array;
-  renderer->vertices = vertices;
-  renderer->indices = indices;
 
   return true;
 }
@@ -209,7 +217,7 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
-  if (vgl_load(&renderer->vgl) < 0) {
+  if (vgl_load() < 0) {
     LOG_ERROR("Failed to load all required OpenGL functions");
     return -1;
   }
@@ -219,7 +227,7 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
-  if (!renderer_setup_buffers(renderer)) {
+  if (!renderer_init_buffers(renderer)) {
     LOG_ERROR("Failed to initialize vertex buffers");
     return -1;
   }
@@ -233,14 +241,14 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
 }
 
 static void renderer_release_buffers(Renderer* renderer) {
-  renderer->vgl.glDeleteBuffers(1, &renderer->indices);
-  renderer->vgl.glDeleteBuffers(1, &renderer->vertices);
-  renderer->vgl.glDeleteVertexArrays(1, &renderer->vertex_array);
+  index_buffer_release(&renderer->indices);
+  vertex_buffer_release(&renderer->vertices);
+  vgl.glDeleteVertexArrays(1, &renderer->vertex_array);
 }
 
 void renderer_close(Renderer* renderer) {
   renderer_release_buffers(renderer);
-  shader_release(&renderer->shader, &renderer->vgl);
+  shader_release(&renderer->shader);
   SDL_GL_DeleteContext(renderer->context);
 }
 
@@ -255,10 +263,21 @@ static void render_running(Renderer* renderer, Game* game) {
   // draw player, ball and opponent
 }
 
-void renderer_render(Renderer* renderer, Game* game) {
-  // clear screen
+static void renderer_clear(Renderer* renderer) {
+  (void)renderer;
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
+}
+
+static void renderer_present(Renderer* renderer) {
+  // for (RenderCommand* cmd = render_queue_begin(renderer->queue), ...)
+  //    renderer_execute(cmd)
+
+  SDL_GL_SwapWindow(renderer->window);
+}
+
+void renderer_render(Renderer* renderer, Game* game) {
+  renderer_clear(renderer);
 
   // render everything
   switch (game_state(game)) {
@@ -273,6 +292,5 @@ void renderer_render(Renderer* renderer, Game* game) {
       break;
   }
 
-  // present the new frame
-  SDL_GL_SwapWindow(renderer->window);
+  renderer_present(renderer);
 }

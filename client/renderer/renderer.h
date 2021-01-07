@@ -1,17 +1,13 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include "types.h"
 #include "shader.h"
-#include "vgl.h"
+#include "buffer.h"
 
 typedef struct Game Game;
 typedef struct SDL_Window SDL_Window;
 typedef void* SDL_GLContext;
-
-// OpenGL object identifier
-typedef unsigned int ObjectID;
-// Shader attribute identifer
-typedef unsigned int AttributeID;
 
 typedef struct {
   // Vertex attributes
@@ -27,14 +23,13 @@ typedef struct {
 typedef struct {
   SDL_Window* window;
   SDL_GLContext* context;
-  VGL vgl;
 
   Shader     shader;
   Attributes attributes; // shader attributes
 
   ObjectID vertex_array; // array of buffer objects
-  ObjectID vertices;     // actual vertex data (positions, texture mappings, colors)
-  ObjectID indices;      // information about order of rendering of vertices
+  VertexBuffer vertices; // actual vertex data (positions, texture mappings, colors)
+  IndexBuffer indices;   // information about order of rendering of vertices
 } Renderer;
 
 // returns 0 on success

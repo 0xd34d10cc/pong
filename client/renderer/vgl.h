@@ -43,20 +43,29 @@ typedef struct VGL {
   PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
   // Delete vertex arrays
   PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+  // Set vertex array as "current"
+  PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
   // Allocate new vertex buffers (aka vbo)
   PFNGLGENBUFFERSPROC glGenBuffers;
   // Delete vertex buffers
   PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-  // Set vertex array as "current"
-  PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
   // Set vertex buffer as "current"
   PFNGLBINDBUFFERPROC glBindBuffer;
+  // Transfer data to buffer
+  PFNGLBUFFERDATAPROC glBufferData;
+  // Map buffer data in virtual memory (write only)
+  PFNGLMAPBUFFERPROC glMapBuffer;
+  // Unmap buffer data from virtual memory
+  PFNGLUNMAPBUFFERPROC glUnmapBuffer;
   // Bind shader attribute to "current" vertex array
   PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
   // Set offset for shader attribute at which the value is located
   PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 } VGL;
 
-int vgl_load(VGL* table);
+int vgl_load(void);
+int vgl_init(VGL* vgl);
+
+extern VGL vgl;
 
 #endif // VGL_H

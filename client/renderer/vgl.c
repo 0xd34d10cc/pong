@@ -11,7 +11,7 @@
     table->name = ptr;                         \
   } while (0)
 
-int vgl_load(VGL* table) {
+int vgl_init(VGL* table) {
   TRY_LOAD(glCreateShader);
   TRY_LOAD(glDeleteShader);
   TRY_LOAD(glShaderSource);
@@ -31,12 +31,21 @@ int vgl_load(VGL* table) {
 
   TRY_LOAD(glGenVertexArrays);
   TRY_LOAD(glDeleteVertexArrays);
+  TRY_LOAD(glBindVertexArray);
   TRY_LOAD(glGenBuffers);
   TRY_LOAD(glDeleteBuffers);
-  TRY_LOAD(glBindVertexArray);
   TRY_LOAD(glBindBuffer);
+  TRY_LOAD(glBufferData);
+  TRY_LOAD(glMapBuffer);
+  TRY_LOAD(glUnmapBuffer);
   TRY_LOAD(glEnableVertexAttribArray);
   TRY_LOAD(glVertexAttribPointer);
 
   return 0;
+}
+
+VGL vgl = { 0 };
+
+int vgl_load(void) {
+  return vgl_init(&vgl);
 }
