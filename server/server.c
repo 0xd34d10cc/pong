@@ -145,6 +145,10 @@ static int process_active_lobby(Lobby* lobby, int id) {
     return 0;
   }
 
+  if (lobby->game.state != STATE_RUNNING) {
+    return 0; 
+  } 
+
   // TODO: get rid of 16 after game_step_end refactoring
   game_step_end(&lobby->game, 16);
 
@@ -157,13 +161,39 @@ static int process_active_lobby(Lobby* lobby, int id) {
     msg.id = GAME_STATE_UPDATE;
     msg.game_state_update.state = lobby->game.state;
 
-    if (send_message(lobby->guest, &msg) < 0) {
-      return -1;
-    }
 
     if (send_message(lobby->owner, &msg) < 0) {
       return -1;
     }
+
+    msg.game_state_update.state = lobby->game.state == STATE_LOST ? STATE_WON : STATE_LOST;
+    if (send_message(lobby->guest, &msg) < 0) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  ServerMessage response;
+
+  response.id = SERVER_UPDATE;
+
+  response.server_update.ball_position.x = lobby->game.ball.position.x;
+  response.server_update.ball_position.y = -1 * lobby->game.ball.position.y;
+
+  response.server_update.opponent_position.x = lobby->game.player.position.x;
+  response.server_update.opponent_position.y = -1 * lobby->game.player.position.y;
+
+  if (send_message(lobby->guest, &response) < 0) {
+    return -1;
+  }
+
+  response.server_update.ball_position.y = lobby->game.ball.position.y;
+  response.server_update.opponent_position.x = lobby->game.opponent.position.x;
+  response.server_update.opponent_position.y = -1 * lobby->game.opponent.position.y;
+
+  if (send_message(lobby->owner, &response) < 0) {
+    return -1;
   }
 
   return 0;
@@ -224,26 +254,14 @@ static int server_client_update(Server* server, Connection* player, ClientUpdate
     return send_error(player, INVALID_LOBBY_ID);
   }
 
-
-  ServerMessage response;
-
-  response.id = SERVER_UPDATE;
-  response.server_update.opponent_position.x = message->position.x;
-  response.server_update.opponent_position.y = message->position.y;
-
-  // FIXME: fill with actuall values when implemented
-  response.server_update.ball_position.x = 0;
-  response.server_update.ball_position.y = 0;
-
-  LOG_INFO("Dummy update has been sent");
-
-  if (player->lobby->owner == player) {
-    return send_message(player->lobby->guest, &response);
+  if(player->lobby->owner == player) {
+    player->lobby->game.player_speed = message->speed;
   }
   else {
-    return send_message(player->lobby->owner, &response);
+    player->lobby->game.opponent_speed = message->speed;
   }
 
+  return 0;
 }
 
 static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
@@ -377,6 +395,7 @@ int server_run(Server* server) {
     return -1;
   }
 
+  // TODO: wrap timer into something crossplatform and readable
   struct itimerspec time = {.it_value = {.tv_sec = 1, .tv_nsec = 0},
                             .it_interval = {.tv_sec = 0, .tv_nsec = 16 * 1000 * 1000}};
 

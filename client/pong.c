@@ -109,6 +109,64 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
+static int prepare_and_send(Pong* pong, const ClientMessage* msg, char* buf, int capacity) {
+  int n = client_message_write(msg, buf, capacity);
+
+  if (n == 0) {
+    return -1;
+  }
+
+  int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+  if (send_res <= 0) {
+    LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
+
+static int prepare_client_message(Pong* pong) {
+  ClientMessage msg = {0};
+  char buf[MAX_MESSAGE_SIZE];
+
+  switch (pong->game_session.state) {
+    case NOT_IN_LOBBY:
+      msg.id = CREATE_LOBBY;
+      strcpy(msg.create_lobby.password, pong->game_session.password);
+      LOG_INFO("Sending Create Lobby with pw: %s", msg.create_lobby.password);
+
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      break;
+
+    case WANT_TO_JOIN: {
+      msg.id = JOIN_LOBBY;
+      msg.join_lobby.id = pong->game_session.id;
+      strcpy(msg.join_lobby.password, pong->game_session.password);
+      LOG_INFO("Sending Join Lobby with id: %d and password: %s", msg.join_lobby.id, msg.join_lobby.password);
+
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
+      pong->game_session.state = WAITING_FOR_LOBBY;
+      break;
+
+    }
+    case WAITING_FOR_LOBBY: {
+      break;
+    }
+    case PLAYING: {
+      msg.id = CLIENT_UPDATE;
+      msg.client_update.position = pong->game.player.position;
+      msg.client_update.speed = pong->game.player_speed;
+
+      break;
+    }
+    default:
+      PANIC("UNHANDLED GAME SESSION STATE: %d", pong->game_session.state);
+  }
+
+  return 0;
+}
+
 static int process_server_message(Pong* pong, ServerMessage* message) {
   int res = 0;
 
@@ -124,6 +182,27 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       pong->game_session.state = WAITING_FOR_LOBBY;
       LOG_INFO("Player with IP: %s has joined your session", pong->game_session.opponent_ip);
       break;
+
+    case SERVER_UPDATE:
+      if (pong->game_session.state != PLAYING) {
+        LOG_INFO("Got first server update, change game_session.state to playing");
+        pong->game_session.state = PLAYING;
+      }
+
+      pong->game.opponent.position.x = message->server_update.opponent_position.x;
+      pong->game.opponent.position.y = message->server_update.opponent_position.y;
+      pong->game.ball.position.x = message->server_update.ball_position.x;
+      pong->game.ball.position.y = message->server_update.ball_position.y;
+
+      break;
+
+    case GAME_STATE_UPDATE:
+      pong->game.state = message->game_state_update.state;
+      break;
+
+    default:
+      LOG_ERROR("invalid message received from server. Msg id is: %d", message->id);
+      return -1;
   }
 
   return res;
@@ -184,67 +263,11 @@ static int process_read(Pong* pong) {
   return 0;
 }
 
-static int prepare_client_message(Pong* pong) {
-  ClientMessage msg = {0};
-  char buf[MAX_MESSAGE_SIZE];
-
-  switch (pong->game_session.state) {
-    case NOT_IN_LOBBY:
-      msg.id = CREATE_LOBBY;
-      strcpy(msg.create_lobby.password, pong->game_session.password);
-
-      int n = client_message_write(&msg, buf, sizeof(buf));
-
-      if (n == 0) {
-        return -1;
-      }
-      LOG_INFO("Sending Create Lobby with pw: %s", msg.create_lobby.password);
-      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
-
-      if (send_res <= 0) {
-        LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
-        return -1;
-      }
-
-      pong->game_session.state = WAITING_FOR_LOBBY;
-      break;
-
-    case WANT_TO_JOIN: {
-      msg.id = JOIN_LOBBY;
-      msg.join_lobby.id = pong->game_session.id;
-      strcpy(msg.join_lobby.password, pong->game_session.password);
-      int n = client_message_write(&msg, buf, sizeof(buf));
-
-      if (n == 0) {
-        return -1;
-      }
-
-      LOG_INFO("Sending Join Lobby with id: %d and password: %s", msg.join_lobby.id, msg.join_lobby.password);
-      int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
-
-      if (send_res <= 0) {
-        LOG_WARN("Send operation failed with code: %d, msg %s", send_res, strerror(errno));
-        return -1;
-      }
-
-      pong->game_session.state = WAITING_FOR_LOBBY;
-      break;
-
-    }
-    case WAITING_FOR_LOBBY: {
-      break;
-    }
-
-    default:
-      PANIC("UNHANDLED GAME SESSION STATE: %d", pong->game_session.state);
-  }
-
-  return 0;
-}
 
 static int pong_process_network(Pong* pong, int timeout_ms) {
   unsigned now = SDL_GetTicks();
   unsigned deadline = now + timeout_ms;
+  prepare_client_message(pong);
 
   while (now < deadline) {
     unsigned time_left = deadline - now;
@@ -291,9 +314,6 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
         pong->connection_state.state = CONNECTED;
       }
 
-      prepare_client_message(pong);
-
-
       if(tcp_send(&pong->tcp_stream) == -1) {
         LOG_WARN("tcp_send failed: %s", strerror(errno));
         return -1;
@@ -315,7 +335,12 @@ void pong_run(Pong* pong) {
     // process events
     game_step_begin(&pong->game);
     pong_process_events(pong);
-    game_step_end(&pong->game, TICK_MS);
+    game_update_player_position(&pong->game);
+
+    // in network case ball position will be updated in pong_process_network
+    if (pong->connection_state.state == LOCAL) {
+      game_update_ball_position(&pong->game);
+    }
 
     // render game state
     renderer_render(&pong->renderer, &pong->game);
@@ -325,6 +350,7 @@ void pong_run(Pong* pong) {
       SDL_Delay(TICK_MS);
     }
     else {
+
       pong_process_network(pong, TICK_MS);
     }
   }

@@ -18,6 +18,10 @@ typedef struct Game {
   Rectangle player;
   Vec2 player_speed;
 
+
+  Rectangle opponent;
+  Vec2 opponent_speed;
+
   Rectangle ball;
   Vec2 ball_speed;
 
@@ -39,9 +43,11 @@ typedef enum {
 
 void game_init(Game* game, int board_width, int board_height);
 GameState game_state(Game* game);
-void game_positions(Game* game, int* player, int* ball_x, int* ball_y);
+void game_positions(Game* game, int* player, int* opponent, int* ball_x, int* ball_y);
 void game_event(Game* game, Event event);
 void game_step_begin(Game* game);
+void game_update_player_position(Game* game);
+void game_update_ball_position(Game* game);
 void game_step_end(Game* game, int ms);
 
 #endif // GAME_H

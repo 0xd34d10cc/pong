@@ -11,6 +11,9 @@ typedef struct {
     SDL_Renderer* backend;
     SDL_Surface* lost_image;
     SDL_Texture* lost_texture;
+
+    SDL_Surface* won_image;
+    SDL_Texture* won_texture;
 } Renderer;
 
 // returns 0 on success
