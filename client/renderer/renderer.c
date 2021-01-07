@@ -260,24 +260,29 @@ static void renderer_present(Renderer* renderer) {
   SDL_GL_SwapWindow(renderer->window);
 }
 
-static void test_render(Renderer* renderer) {
-  // setup buffer data
-  static const Vertex scene_vertices[] = {
-    { .position = {0.0f, 0.0f}, .color = {0xff, 0xff, 0xff} },
-    { .position = {0.0f, 0.5f}, .color = {0xff, 0xff, 0xff} },
-    { .position = {0.5f, 0.0f}, .color = {0xff, 0xff, 0xff} }
-  };
+static void render_rectangle(Renderer* renderer, Rectangle rect) {
+  float x = rect.position.x;
+  float y = rect.position.y;
+  float w = rect.size.x;
+  float h = rect.size.y;
 
-  static const unsigned int scene_indices[] = {0, 1, 2};
+  Vertex rect_vertices[] = {
+    { .position = {x,     y    }, .color = {0xff, 0xff, 0xff} },
+    { .position = {x + w, y    }, .color = {0xff, 0xff, 0xff} },
+    { .position = {x,     y + h}, .color = {0xff, 0xff, 0xff} },
+    { .position = {x + w, y + h}, .color = {0xff, 0xff, 0xff} }
+  };
 
   vertex_buffer_bind(&renderer->vertices);
   Vertex* vertices = vertex_buffer_map(&renderer->vertices);
-  memcpy(vertices, scene_vertices, sizeof(scene_vertices));
+  memcpy(vertices, rect_vertices, sizeof(rect_vertices));
   vertex_buffer_unmap(&renderer->vertices);
+
+  unsigned int rect_indices[] = {0, 1, 2, 1, 2, 3};
 
   index_buffer_bind(&renderer->indices);
   unsigned int* indices = index_buffer_map(&renderer->indices);
-  memcpy(indices, scene_indices, sizeof(scene_indices));
+  memcpy(indices, rect_indices, sizeof(rect_indices));
   index_buffer_unmap(&renderer->indices);
 
   // setup shader variables
@@ -292,14 +297,17 @@ static void test_render(Renderer* renderer) {
   vgl.glUniformMatrix4fv(renderer->attributes.projection, 1, GL_FALSE, &ortho[0][0]);
 
   // actually draw
-  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
 void renderer_render(Renderer* renderer, Game* game) {
   renderer_clear(renderer);
 
-  // TODO: remove
-  test_renderer(renderer);
+  Rectangle rect = {
+    .position = {-0.5, -0.5},
+    .size = {1.0, 1.0}
+  };
+  render_rectangle(renderer, rect);
 
   // render everything
   switch (game_state(game)) {
