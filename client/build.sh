@@ -11,6 +11,7 @@ clang -o pong scu.c                         \
       -Werror=return-type                   \
       -Werror=unused-variable               \
       -Werror=unused-parameter              \
+      -Werror=incompatible-pointer-types    \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \

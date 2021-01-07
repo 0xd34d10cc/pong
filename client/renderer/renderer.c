@@ -71,11 +71,10 @@ static void GLAPIENTRY opengl_debug_log(
 
 typedef struct {
   float position[2];
-  float uv[2];
   unsigned char color[4];
 } Vertex;
 
-static_assert(20 == sizeof(Vertex), "Unexpected padding in Vertex");
+static_assert(12 == sizeof(Vertex), "Unexpected padding in Vertex");
 
 static AttributeID var_id(Renderer* renderer, const char* name, bool is_uniform) {
   AttributeID id = is_uniform ? shader_uniform(&renderer->shader, name)
@@ -96,12 +95,9 @@ static bool renderer_init_shader(Renderer* renderer) {
     "#version 300 es\n"
     "uniform mat4 projection;\n"
     "in vec2 in_pos;\n"
-    "in vec2 in_uv;\n"
     "in vec4 in_color;\n"
-    "out vec2 pixel_uv;\n"
     "out vec4 pixel_color;\n"
     "void main() {\n"
-    "  pixel_uv = in_uv;\n"
     "  pixel_color = in_color;\n"
     "  gl_Position = projection * vec4(in_pos.xy, 0, 1);\n"
     "}\n";
@@ -111,12 +107,10 @@ static bool renderer_init_shader(Renderer* renderer) {
   const char* pixel_shader =
     "#version 300 es\n"
     "precision mediump float;\n" // TODO: do we need this?
-    "uniform sampler2D tex;\n"
-    "in vec2 pixel_uv;\n"
     "in vec4 pixel_color;\n"
     "out vec4 out_color;\n"
     "void main() {\n"
-    "  out_color = pixel_color * texture(tex, pixel_uv.st);\n"
+    "  out_color = pixel_color;\n"
     "}\n";
 
   if (shader_compile(&renderer->shader, vertex_shader, pixel_shader) < 0) {
@@ -125,20 +119,14 @@ static bool renderer_init_shader(Renderer* renderer) {
   }
 
   renderer->attributes.pos   = var_id(renderer, "in_pos", false);
-  renderer->attributes.uv    = var_id(renderer, "in_uv", false);
   renderer->attributes.color = var_id(renderer, "in_color", false);
 
-  if (renderer->attributes.pos == -1 ||
-      renderer->attributes.uv == -1 ||
-      renderer->attributes.color == -1) {
+  if (renderer->attributes.pos == -1 || renderer->attributes.color == -1) {
     return false;
   }
 
   renderer->attributes.projection = var_id(renderer, "projection", true);
-  renderer->attributes.texture    = var_id(renderer, "tex", true);
-
-  if (renderer->attributes.projection == -1 ||
-      renderer->attributes.texture == -1) {
+  if (renderer->attributes.projection == -1) {
     return false;
   }
 
@@ -198,10 +186,6 @@ static bool renderer_init_buffers(Renderer* renderer) {
   vgl.glEnableVertexAttribArray(renderer->attributes.pos);
   vgl.glVertexAttribPointer(renderer->attributes.pos, 2, GL_FLOAT, GL_FALSE,
                            sizeof(Vertex), (const void*)offsetof(Vertex, position));
-
-  vgl.glEnableVertexAttribArray(renderer->attributes.uv);
-  vgl.glVertexAttribPointer(renderer->attributes.uv, 2, GL_FLOAT, GL_FALSE,
-                            sizeof(Vertex), (const void*)offsetof(Vertex, uv));
 
   vgl.glEnableVertexAttribArray(renderer->attributes.color);
   vgl.glVertexAttribPointer(renderer->attributes.color, 4, GL_UNSIGNED_BYTE, GL_TRUE,
@@ -276,8 +260,46 @@ static void renderer_present(Renderer* renderer) {
   SDL_GL_SwapWindow(renderer->window);
 }
 
+static void test_render(Renderer* renderer) {
+  // setup buffer data
+  static const Vertex scene_vertices[] = {
+    { .position = {0.0f, 0.0f}, .color = {0xff, 0xff, 0xff} },
+    { .position = {0.0f, 0.5f}, .color = {0xff, 0xff, 0xff} },
+    { .position = {0.5f, 0.0f}, .color = {0xff, 0xff, 0xff} }
+  };
+
+  static const unsigned int scene_indices[] = {0, 1, 2};
+
+  vertex_buffer_bind(&renderer->vertices);
+  Vertex* vertices = vertex_buffer_map(&renderer->vertices);
+  memcpy(vertices, scene_vertices, sizeof(scene_vertices));
+  vertex_buffer_unmap(&renderer->vertices);
+
+  index_buffer_bind(&renderer->indices);
+  unsigned int* indices = index_buffer_map(&renderer->indices);
+  memcpy(indices, scene_indices, sizeof(scene_indices));
+  index_buffer_unmap(&renderer->indices);
+
+  // setup shader variables
+  shader_bind(&renderer->shader);
+
+  float ortho[4][4] = {
+    { 1.0f,  0.0f,  0.0f, 0.0f},
+    { 0.0f,  1.0f,  0.0f, 0.0f},
+    { 0.0f,  0.0f,  1.0f, 0.0f},
+    { 0.0f,  0.0f,  0.0f, 1.0f}
+  };
+  vgl.glUniformMatrix4fv(renderer->attributes.projection, 1, GL_FALSE, &ortho[0][0]);
+
+  // actually draw
+  glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+}
+
 void renderer_render(Renderer* renderer, Game* game) {
   renderer_clear(renderer);
+
+  // TODO: remove
+  test_renderer(renderer);
 
   // render everything
   switch (game_state(game)) {

@@ -33,11 +33,16 @@ typedef struct VGL {
   PFNGLLINKPROGRAMPROC glLinkProgram;
   // Get program attributes (e.g. link status)
   PFNGLGETPROGRAMIVPROC glGetProgramiv;
+  // Make shader "current"
+  PFNGLUSEPROGRAMPROC glUseProgram;
 
   // Get ID of uniform (shared across compute units) variable
   PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
   // Get ID of attribute (unique to each compute unit) variable
   PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+  // Set 4x4 matrix uniform variable
+  PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+
 
   // Allocate new vertex arrays (array of vertex buffers, aka vao)
   PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;

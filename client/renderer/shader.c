@@ -53,6 +53,23 @@ int shader_compile(Shader* shader, const char* vertex_source, const char* fragme
   return 0;
 }
 
+void shader_release(Shader* shader) {
+  vgl.glDetachShader(shader->program, shader->vertex);
+  vgl.glDetachShader(shader->program, shader->fragment);
+  vgl.glDeleteProgram(shader->program);
+  vgl.glDeleteShader(shader->vertex);
+  vgl.glDeleteShader(shader->fragment);
+}
+
+void shader_bind(Shader* shader) {
+  vgl.glUseProgram(shader->program);
+}
+
+void shader_unbind(Shader* shader) {
+  (void)shader;
+  vgl.glUseProgram(0);
+}
+
 AttributeID shader_uniform(Shader* shader, const char* name) {
   return vgl.glGetUniformLocation(shader->program, name);
 }
@@ -61,10 +78,3 @@ AttributeID shader_var(Shader* shader, const char* name) {
   return vgl.glGetAttribLocation(shader->program, name);
 }
 
-void shader_release(Shader* shader) {
-  vgl.glDetachShader(shader->program, shader->vertex);
-  vgl.glDetachShader(shader->program, shader->fragment);
-  vgl.glDeleteProgram(shader->program);
-  vgl.glDeleteShader(shader->vertex);
-  vgl.glDeleteShader(shader->fragment);
-}

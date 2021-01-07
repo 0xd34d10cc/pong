@@ -11,8 +11,12 @@ typedef struct Shader {
 } Shader;
 
 int shader_compile(Shader* shader, const char* vertex_source, const char* fragment_source);
+void shader_release(Shader* shader);
+
+void shader_bind(Shader* shader);
+void shader_unbind(Shader* shader);
+
 AttributeID shader_var(Shader* shader, const char* name);
 AttributeID shader_uniform(Shader* shader, const char* name);
-void shader_release(Shader* shader);
 
 #endif // SHADER_H
