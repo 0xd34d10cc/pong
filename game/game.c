@@ -50,7 +50,7 @@ void game_event(Game* game, Event event) {
       game->player_speed.x = PLAYER_SPEED;
       break;
     case EVENT_RESTART:
-      if (game->state == STATE_LOST) {
+      if (game->state != STATE_RUNNING) {
           game_init(game, game->board.size.x, game->board.size.y);
       }
       break;
