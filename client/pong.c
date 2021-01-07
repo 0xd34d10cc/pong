@@ -157,7 +157,7 @@ static int prepare_client_message(Pong* pong) {
       msg.id = CLIENT_UPDATE;
       msg.client_update.position = pong->game.player.position;
       msg.client_update.speed = pong->game.player_speed;
-
+      prepare_and_send(pong, &msg, buf, sizeof(buf));
       break;
     }
     default:
