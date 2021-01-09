@@ -5,6 +5,7 @@
 #include "pong.h"
 #include "log.h"
 
+
 int main(int argc, char* argv[]) {
   (void)argc;
   Args params;
@@ -16,7 +17,7 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  if (SDL_Init(SDL_INIT_VIDEO)) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS)) {
     LOG_ERROR("Could not initialize SDL: %s", SDL_GetError());
     return EXIT_FAILURE;
   }
@@ -43,6 +44,7 @@ int main(int argc, char* argv[]) {
 
   Pong pong;
   if (pong_init(&pong, &params)) {
+    LOG_ERROR("Initialization failed");
     return EXIT_FAILURE;
   }
 

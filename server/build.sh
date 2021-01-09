@@ -14,4 +14,4 @@ clang -o server scu.c                       \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \
-      -D DEBUG
+      -DPONG_DEBUG

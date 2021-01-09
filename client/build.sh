@@ -11,8 +11,10 @@ clang -o pong scu.c                         \
       -Werror=return-type                   \
       -Werror=unused-variable               \
       -Werror=unused-parameter              \
+      -Werror=incompatible-pointer-types    \
       -I..                                  \
       -I../utils                            \
       -D_GNU_SOURCE                         \
-      -D DEBUG                              \
-      `pkg-config --cflags --libs sdl2`     
+      -DPONG_DEBUG                          \
+      `pkg-config --cflags --libs sdl2`     \
+      `pkg-config --cflags --libs gl`

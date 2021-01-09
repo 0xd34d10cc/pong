@@ -4,7 +4,7 @@
 #include "net/reactor.h"
 #include "net/tcp_stream.h"
 #include "game/game.h"
-#include "renderer.h"
+#include "renderer/renderer.h"
 #include "args.h"
 
 typedef struct SDL_Window SDL_Window;
