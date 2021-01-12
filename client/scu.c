@@ -9,6 +9,8 @@
 #include "renderer/vgl.c"
 #include "renderer/shader.c"
 #include "renderer/buffer.c"
+#include "renderer/texture.c"
 #include "renderer/renderer.c"
 #include "pong.c"
+#include "ppm.c"
 #include "main.c"

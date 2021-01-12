@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "game/game.h"
 #include "log.h"
+#include "ppm.h"
 
 #include <assert.h>
 
@@ -106,7 +107,7 @@ static bool renderer_init_shader(Renderer* renderer) {
   // It determines the resulting color of the pixel on screen
   const char* pixel_shader =
     "#version 300 es\n"
-    "precision mediump float;\n" // TODO: do we need this?
+    "precision mediump float;\n"
     "in vec4 pixel_color;\n"
     "out vec4 out_color;\n"
     "void main() {\n"
@@ -196,6 +197,25 @@ static bool renderer_init_buffers(Renderer* renderer) {
   return true;
 }
 
+static bool load_texture(Texture* texture, const char* path) {
+  PPM image;
+  if (ppm_open(&image, path) < 0) {
+    return false;
+  }
+
+  texture_init(texture);
+  texture_bind(texture);
+  texture_set(texture, image.data, image.width, image.height);
+  ppm_close(&image);
+  return true;
+}
+
+bool renderer_load_textures(Renderer* renderer) {
+  (void)renderer;
+  Texture texture;
+  return load_texture(&texture, "assets/lose.ppm");
+}
+
 int renderer_init(Renderer* renderer, SDL_Window* window) {
   if (!renderer_init_context(renderer, window)) {
     return -1;
@@ -216,10 +236,10 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
     return -1;
   }
 
-  // TODO
-  // if (!renderer_load_textures(renderer)) {
-  //    ...
-  // }
+  if (!renderer_load_textures(renderer)) {
+    LOG_ERROR("Failed to load textures");
+    return -1;
+  }
 
   return 0;
 }

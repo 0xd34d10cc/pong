@@ -4,6 +4,7 @@
 #include "types.h"
 #include "shader.h"
 #include "buffer.h"
+#include "texture.h"
 
 typedef struct Game Game;
 typedef struct SDL_Window SDL_Window;
