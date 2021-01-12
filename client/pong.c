@@ -7,6 +7,8 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_timer.h>
 
+#define DEFAULT_WINDOW_WIDTH 800
+#define DEFAULT_WINDOW_HEIGHT 600
 
 #define RECONNECT_DELAY 1000 * 3
 
@@ -29,9 +31,6 @@ int pong_init(Pong* pong, Args* params) {
   if (renderer_init(&pong->renderer, pong->window)) {
     return -1;
   }
-
-  game_init(&pong->game, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-
   if (reactor_init(&pong->reactor)) {
     LOG_ERROR("Can't initialize reactor");
     return -1;
@@ -62,6 +61,9 @@ int pong_init(Pong* pong, Args* params) {
   }
 
   pong->game_session.opponent_ip[0] = '\0';
+
+  game_init(&pong->game, pong->connection_state.state != LOCAL);
+
   return 0;
 }
 

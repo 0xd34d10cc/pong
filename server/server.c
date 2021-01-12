@@ -111,7 +111,7 @@ static void lobby_init(Lobby* lobby, Connection* owner, const char* password) {
   lobby->guest = NULL;
   strcpy(lobby->password, password);
   // FIXME: unhardcode the board size
-  game_init(&lobby->game, 800, 600);
+  game_init(&lobby->game, true);
 }
 
 static int server_create_lobby(Server* server, Connection* owner, CreateLobby* message) {

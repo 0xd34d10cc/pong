@@ -6,18 +6,14 @@
 #define BALL_WIDTH 0.05
 #define BALL_HEIGHT 0.05
 
-// FIXME: these are client only definitions
-#define DEFAULT_WINDOW_WIDTH 800
-#define DEFAULT_WINDOW_HEIGHT 600
-
 #include "rectangle.h"
 
 typedef struct Game {
   int state;
+  bool is_multiplayer;
 
   Rectangle player;
   Vec2 player_speed;
-
 
   Rectangle opponent;
   Vec2 opponent_speed;
@@ -41,9 +37,8 @@ typedef enum {
   EVENT_RESTART
 } Event;
 
-void game_init(Game* game, int board_width, int board_height);
+void game_init(Game* game, bool is_multiplayer);
 GameState game_state(Game* game);
-void game_positions(Game* game, int* player, int* opponent, int* ball_x, int* ball_y);
 void game_event(Game* game, Event event);
 void game_step_begin(Game* game);
 void game_update_player_position(Game* game);

@@ -12,11 +12,9 @@ static float clamp(float x, float min, float max) {
 static const float PLAYER_SPEED = 0.015;
 static const float BALL_SPEED = PLAYER_SPEED/2;
 
-void game_init(Game* game, int board_width, int board_height) {
-  (void)board_width;
-  (void)board_height;
-
+void game_init(Game* game, bool is_multiplayer) {
   game->state = STATE_RUNNING;
+  game->is_multiplayer = is_multiplayer;
 
   game->player = (Rectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
   game->player_speed = (Vec2) {0.0, 0.0};
@@ -34,13 +32,6 @@ GameState game_state(Game* game) {
   return game->state;
 }
 
-void game_positions(Game* game, int* player, int* opponent, int* ball_x, int* ball_y) {
-  *player = (game->player.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
-  *opponent = (game->opponent.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
-  *ball_x = (game->ball.position.x + 1) * (DEFAULT_WINDOW_WIDTH / 2);
-  *ball_y = DEFAULT_WINDOW_HEIGHT - (game->ball.position.y + game->ball.size.y +1) * (DEFAULT_WINDOW_HEIGHT / 2) ;
-}
-
 void game_event(Game* game, Event event) {
   switch (event) {
     case EVENT_MOVE_LEFT:
@@ -51,7 +42,7 @@ void game_event(Game* game, Event event) {
       break;
     case EVENT_RESTART:
       if (game->state != STATE_RUNNING) {
-          game_init(game, game->board.size.x, game->board.size.y);
+          game_init(game, game->is_multiplayer);
       }
       break;
   }
@@ -107,7 +98,12 @@ void game_update_ball_position(Game* game) {
   }
 
   if (game->ball.position.y > game->board.position.y + game->board.size.y) {
-    game->state = STATE_WON;
+    if (!game->is_multiplayer) {
+      game->ball_speed.y = -game->ball_speed.y;
+    } 
+    else {
+      game->state = STATE_WON;
+    }
   }
 
   // floor/wall collisions

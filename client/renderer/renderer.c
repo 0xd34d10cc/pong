@@ -283,6 +283,7 @@ static void render_lost(Renderer* renderer) {
 
 static void render_running(Renderer* renderer, Game* game) {
   render_rectangle(renderer, game->player);
+  render_rectangle(renderer, game->opponent);
   render_rectangle(renderer, game->ball);
 }
 
