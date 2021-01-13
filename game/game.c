@@ -100,7 +100,7 @@ void game_update_ball_position(Game* game) {
   if (game->ball.position.y > game->board.position.y + game->board.size.y) {
     if (!game->is_multiplayer) {
       game->ball_speed.y = -game->ball_speed.y;
-    } 
+    }
     else {
       game->state = STATE_WON;
     }

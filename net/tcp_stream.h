@@ -31,6 +31,9 @@ int tcp_from_socket(TcpStream* stream, Reactor* loop, int socket);
 // Close tcp stream
 void tcp_close(TcpStream* stream);
 
+// Shutdown tcp stream connection
+void tcp_shutdown(TcpStream* stream);
+
 // Start a connect operation
 int tcp_start_connect(TcpStream* stream, const char* ip, unsigned short port);
 

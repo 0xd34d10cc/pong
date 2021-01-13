@@ -34,6 +34,11 @@ void tcp_close(TcpStream* stream) {
   close(stream->state.fd);
 }
 
+void tcp_shutdown(TcpStream* stream) {
+  reactor_deregister(stream->reactor, &stream->state);
+  shutdown(stream->state.fd, SHUT_RDWR);
+}
+
 int tcp_start_connect(TcpStream* stream, const char* ip, unsigned short port) {
   struct sockaddr_in address;
   address.sin_family = AF_INET;

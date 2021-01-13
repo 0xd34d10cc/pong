@@ -111,6 +111,14 @@ static void pong_process_events(Pong* pong) {
   }
 }
 
+static void disconnect(Pong* pong) {
+  LOG_INFO("Disconnecting from current session");
+  pong->connection_state.state = DISCONNECTED;
+  pong->game_session.state = NOT_IN_LOBBY;
+
+  tcp_shutdown(&pong->tcp_stream);
+}
+
 static int prepare_and_send(Pong* pong, const ClientMessage* msg, char* buf, int capacity) {
   int n = client_message_write(msg, buf, capacity);
 
@@ -200,6 +208,12 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
 
     case GAME_STATE_UPDATE:
       pong->game.state = message->game_state_update.state;
+      break;
+
+    case ERROR_STATUS:
+      LOG_ERROR("Error received from server. %d", message->error.status);
+      disconnect(pong);
+      pong->connection_state.state = LOCAL;
       break;
 
     default:
@@ -352,7 +366,6 @@ void pong_run(Pong* pong) {
       SDL_Delay(TICK_MS);
     }
     else {
-
       pong_process_network(pong, TICK_MS);
     }
   }
