@@ -3,9 +3,13 @@
 #include <errno.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <wepoll.h>
+#define EPOLLET 0
+#else
 #include <sys/epoll.h>
 #include <unistd.h>
-
+#endif // _WIN32
 #include "bool.h"
 
 
@@ -91,8 +95,8 @@ int reactor_deregister(Reactor* reactor, Evented* object) {
 }
 
 
+#define MAX_EVENTS 64
 int reactor_poll(Reactor* reactor, IOEvent* events, int n_events, int timeout_ms) {
-  static const int MAX_EVENTS = 64;
   struct epoll_event epoll_events[MAX_EVENTS];
   // TODO: handle this case properly
   if (n_events > MAX_EVENTS) {

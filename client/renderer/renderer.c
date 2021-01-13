@@ -236,7 +236,7 @@ void renderer_close(Renderer* renderer) {
   SDL_GL_DeleteContext(renderer->context);
 }
 
-static void render_rectangle(Renderer* renderer, Rectangle rect) {
+static void render_rectangle(Renderer* renderer, PongRectangle rect) {
   float x = rect.position.x;
   float y = rect.position.y;
   float w = rect.size.x;

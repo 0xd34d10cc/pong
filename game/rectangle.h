@@ -3,16 +3,16 @@
 
 #include "vec2.h"
 
-typedef struct Rectangle {
+typedef struct PongRectangle {
   Vec2 position; // left bottom corner
   Vec2 size;
-} Rectangle;
+} PongRectangle;
 
 inline bool in_range(float val, float min, float max) {
   return (val >= min) && (val <= max);
 }
 
-inline bool rect_intersect(const Rectangle* r1, const Rectangle* r2) {
+inline bool rect_intersect(const PongRectangle* r1, const PongRectangle* r2) {
   float r1_top_right_x = r1->position.x + r1->size.x;
   float r1_top_right_y = r1->position.y + r1->size.y;
 
@@ -31,7 +31,7 @@ inline bool rect_intersect(const Rectangle* r1, const Rectangle* r2) {
   return x_overlap && y_overlap;
 }
 
-inline void rect_clamp(Rectangle* inner, Rectangle* outer) {
+inline void rect_clamp(PongRectangle* inner, PongRectangle* outer) {
   if (inner->position.x + inner->size.x > outer->position.x + outer->size.x) {
     inner->position.x = (outer->position.x + outer->size.x) - inner->size.x;
   }

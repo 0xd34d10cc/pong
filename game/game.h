@@ -12,16 +12,16 @@ typedef struct Game {
   int state;
   bool is_multiplayer;
 
-  Rectangle player;
+  PongRectangle player;
   Vec2 player_speed;
 
-  Rectangle opponent;
+  PongRectangle opponent;
   Vec2 opponent_speed;
 
-  Rectangle ball;
+  PongRectangle ball;
   Vec2 ball_speed;
 
-  Rectangle board;
+  PongRectangle board;
 } Game;
 
 typedef enum {

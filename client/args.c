@@ -5,7 +5,11 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 
 static const char* DEFAULT_HOST = "127.0.0.1";
 static const int DEFAULT_PORT = 1337;

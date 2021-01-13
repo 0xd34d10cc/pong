@@ -9,23 +9,23 @@ static float clamp(float x, float min, float max) {
   return x;
 }
 
-static const float PLAYER_SPEED = 0.015;
-static const float BALL_SPEED = PLAYER_SPEED/2;
+#define PLAYER_SPEED 0.015
+#define BALL_SPEED PLAYER_SPEED/2
 
 void game_init(Game* game, bool is_multiplayer) {
   game->state = STATE_RUNNING;
   game->is_multiplayer = is_multiplayer;
 
-  game->player = (Rectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
+  game->player = (PongRectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
   game->player_speed = (Vec2) {0.0, 0.0};
 
-  game->opponent = (Rectangle) { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
+  game->opponent = (PongRectangle) { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
   game->opponent_speed = (Vec2) {0.0, 0.0};
 
-  game->ball = (Rectangle) {.position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT}};
+  game->ball = (PongRectangle) {.position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT}};
   game->ball_speed = (Vec2) {BALL_SPEED, BALL_SPEED};
 
-  game->board = (Rectangle) {.position = {-1.0, -1.0}, .size = {2, 2}};
+  game->board = (PongRectangle) {.position = {-1.0, -1.0}, .size = {2, 2}};
 }
 
 GameState game_state(Game* game) {
@@ -64,10 +64,10 @@ void game_update_player_position(Game* game) {
   rect_clamp(&game->opponent, &game->board);
 }
 
-// TODO: Rewrite all rectangles + speed to something like GameObject {Rectangle; Speed}
-static void process_player_hit(Game* game, Rectangle* player, Vec2 player_speed) {
+// TODO: Rewrite all rectangles + speed to something like GameObject {PongPongRectangle; Speed}
+static void process_player_hit(Game* game, PongRectangle* player, Vec2 player_speed) {
   bool curr_intersect = rect_intersect(&game->ball, player);
-  Rectangle next_frame_ball = game->ball;
+  PongRectangle next_frame_ball = game->ball;
   next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball_speed);
   bool next_intersect = rect_intersect(&next_frame_ball, player);
 
