@@ -249,7 +249,6 @@ static int server_join_lobby(Server* server, Connection* guest, JoinLobby* messa
 
 
 static int server_client_update(Server* server, Connection* player, ClientUpdate* message) {
-  LOG_DEBUG("[%02d] client update received", connection_id(player));
   if (!pool_contains(&server->lobbies, player->lobby)) {
     LOG_WARN("[%02d] Failed to find lobby.", connection_id(player));
     return send_error(player, INVALID_LOBBY_ID);
