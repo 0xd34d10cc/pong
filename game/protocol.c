@@ -90,6 +90,10 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
         READ(client_message->client_update.position);
         READ(client_message->client_update.speed);
         break;
+
+      case CLIENT_STATE_UPDATE:
+        READ(client_message->client_state_update.state);
+        break;
       default:
         return -1;
     }
@@ -181,6 +185,10 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
       case CLIENT_UPDATE:
         WRITE(client_message->client_update.position);
         WRITE(client_message->client_update.speed);
+        break;
+
+      case CLIENT_STATE_UPDATE:
+        WRITE(client_message->client_state_update.state);
         break;
       default:
         PANIC("Unhandled message id: %d", client_message->id);

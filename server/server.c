@@ -146,8 +146,8 @@ static int process_active_lobby(Lobby* lobby, int id) {
   }
 
   if (lobby->game.state != STATE_RUNNING) {
-    return 0; 
-  } 
+    return 0;
+  }
 
   // TODO: get rid of 16 after game_step_end refactoring
   game_step_end(&lobby->game, 16);
@@ -190,7 +190,7 @@ static int process_active_lobby(Lobby* lobby, int id) {
 
   response.server_update.ball_position.y = lobby->game.ball.position.y;
   response.server_update.opponent_position.x = lobby->game.opponent.position.x;
-  response.server_update.opponent_position.y = -1 * lobby->game.opponent.position.y;
+  response.server_update.opponent_position.y = lobby->game.opponent.position.y;
 
   if (send_message(lobby->owner, &response) < 0) {
     return -1;
@@ -264,6 +264,42 @@ static int server_client_update(Server* server, Connection* player, ClientUpdate
   return 0;
 }
 
+static int server_client_state_update(Server* server, Connection* player,
+                                      ClientStateUpdate* message) {
+  (void)server;
+  switch (message->state) {
+    case CLIENT_STATE_RESTART:
+      if (player->lobby == NULL) {
+        return send_error(player, NOT_IN_GAME);
+      }
+
+      if (!player->lobby->owner || !player->lobby->guest) {
+        return send_error(player, NOT_IN_GAME);
+      }
+
+      if (player->lobby->game.state != STATE_RUNNING) {
+        game_event(&player->lobby->game, EVENT_RESTART);
+        ServerMessage server_msg;
+        server_msg.id = GAME_STATE_UPDATE;
+        server_msg.game_state_update.state = STATE_RUNNING;
+
+        if (send_message(player->lobby->owner, &server_msg) < 0) {
+          return -1;
+        }
+
+        if (send_message(player->lobby->guest, &server_msg) < 0) {
+          return -1;
+        }
+
+      }
+      break;
+    default:
+      LOG_ERROR("[%02d] Received wrong client state: %d", connection_id(player), message->state);
+      return -1;
+  }
+  return 0;
+}
+
 static int server_process_message(Server* server, Connection* connection, ClientMessage* message) {
   int status = 0;
   switch (message->id) {
@@ -275,6 +311,9 @@ static int server_process_message(Server* server, Connection* connection, Client
       break;
     case CLIENT_UPDATE:
       status = server_client_update(server, connection, &message->client_update);
+      break;
+    case CLIENT_STATE_UPDATE:
+      status = server_client_state_update(server, connection, &message->client_state_update);
       break;
     default:
       LOG_WARN("[%02d] Unexpected message: %d", connection_id(connection), message->id);

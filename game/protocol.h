@@ -15,6 +15,7 @@ typedef enum {
   CREATE_LOBBY = 0x0,
   JOIN_LOBBY = 0x1,
   CLIENT_UPDATE = 0x2,
+  CLIENT_STATE_UPDATE = 0x3,
 
   // server messages
   LOBBY_CREATED = 0x10,
@@ -64,6 +65,17 @@ typedef struct {
   Vec2 ball_speed;
 } ServerUpdate;
 
+//Enum of possible client states
+typedef enum {
+  CLIENT_STATE_RESTART = 0
+} ClientState;
+
+// Update from client about wanted game changes, eg: restart, disconnect
+// current opponent, etc.
+typedef struct {
+  int state;
+} ClientStateUpdate;
+
 // Server sends this to clients to update game state
 typedef struct {
   int state;
@@ -83,7 +95,10 @@ enum {
   // Opponent disconnected unexpectedly
   OPPONENT_DISCONNECTED,
 
-  // internal error means that something went wrong inside server
+  // Client is trying to perform some actions with not existing lobby
+  NOT_IN_GAME,
+
+  // Internal error means that something went wrong inside server
   INTERNAL_ERROR,
 
   ERROR_STATUS_MAX
@@ -101,6 +116,7 @@ typedef struct {
     CreateLobby create_lobby;
     JoinLobby join_lobby;
     ClientUpdate client_update;
+    ClientStateUpdate client_state_update;
   };
 } ClientMessage;
 

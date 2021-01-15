@@ -72,6 +72,25 @@ void pong_close(Pong* pong) {
   SDL_DestroyWindow(pong->window);
 }
 
+static int prepare_and_send(Pong* pong, const ClientMessage* msg) {
+  char buf[MAX_MESSAGE_SIZE];
+
+  int n = client_message_write(msg, buf, sizeof(buf));
+
+  if (n == 0) {
+    return -1;
+  }
+
+  int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
+  if (send_res <= 0) {
+    LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
+
+
 static void pong_event(Pong* pong, SDL_Event* event) {
   switch (event->type) {
     case SDL_QUIT:
@@ -85,7 +104,19 @@ static void pong_event(Pong* pong, SDL_Event* event) {
           }
           break;
         case SDL_SCANCODE_RETURN:
-          game_event(&pong->game, EVENT_RESTART);
+          if (pong->connection_state.state == LOCAL) {
+            game_event(&pong->game, EVENT_RESTART);
+          }
+          else if (pong->connection_state.state == CONNECTED &&
+                  pong->game_session.state == PLAYING) {
+            ClientMessage msg;
+            msg.id = CLIENT_STATE_UPDATE;
+            msg.client_state_update.state = CLIENT_STATE_RESTART;
+
+            if (prepare_and_send(pong, &msg) < 0) {
+              LOG_ERROR("Can't send restart to the server");
+            }
+          }
           break;
         default:
           break;
@@ -119,25 +150,8 @@ static void disconnect(Pong* pong) {
   tcp_shutdown(&pong->tcp_stream);
 }
 
-static int prepare_and_send(Pong* pong, const ClientMessage* msg, char* buf, int capacity) {
-  int n = client_message_write(msg, buf, capacity);
-
-  if (n == 0) {
-    return -1;
-  }
-
-  int send_res = tcp_start_send(&pong->tcp_stream, buf, n);
-  if (send_res <= 0) {
-    LOG_WARN("Send operation failed with code: %d, msg: %s", send_res, strerror(errno));
-    return -1;
-  }
-
-  return 0;
-}
-
 static int prepare_client_message(Pong* pong) {
   ClientMessage msg = {0};
-  char buf[MAX_MESSAGE_SIZE];
 
   switch (pong->game_session.state) {
     case NOT_IN_LOBBY:
@@ -145,7 +159,7 @@ static int prepare_client_message(Pong* pong) {
       strcpy(msg.create_lobby.password, pong->game_session.password);
       LOG_INFO("Sending Create Lobby with pw: %s", msg.create_lobby.password);
 
-      prepare_and_send(pong, &msg, buf, sizeof(buf));
+      prepare_and_send(pong, &msg);
       pong->game_session.state = WAITING_FOR_LOBBY;
       break;
 
@@ -155,7 +169,7 @@ static int prepare_client_message(Pong* pong) {
       strcpy(msg.join_lobby.password, pong->game_session.password);
       LOG_INFO("Sending Join Lobby with id: %d and password: %s", msg.join_lobby.id, msg.join_lobby.password);
 
-      prepare_and_send(pong, &msg, buf, sizeof(buf));
+      prepare_and_send(pong, &msg);
       pong->game_session.state = WAITING_FOR_LOBBY;
       break;
 
@@ -167,7 +181,7 @@ static int prepare_client_message(Pong* pong) {
       msg.id = CLIENT_UPDATE;
       msg.client_update.position = pong->game.player.position;
       msg.client_update.speed = pong->game.player_speed;
-      prepare_and_send(pong, &msg, buf, sizeof(buf));
+      prepare_and_send(pong, &msg);
       break;
     }
     default:
@@ -207,6 +221,11 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
       break;
 
     case GAME_STATE_UPDATE:
+
+      if (message->game_state_update.state == STATE_RUNNING) {
+        game_event(&pong->game, EVENT_RESTART);
+      }
+
       pong->game.state = message->game_state_update.state;
       break;
 
