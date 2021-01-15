@@ -190,7 +190,7 @@ static int process_active_lobby(Lobby* lobby, int id) {
 
   response.server_update.ball_position.y = lobby->game.ball.position.y;
   response.server_update.opponent_position.x = lobby->game.opponent.position.x;
-  response.server_update.opponent_position.y = -1 * lobby->game.opponent.position.y;
+  response.server_update.opponent_position.y = lobby->game.opponent.position.y;
 
   if (send_message(lobby->owner, &response) < 0) {
     return -1;

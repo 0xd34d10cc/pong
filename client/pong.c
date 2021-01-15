@@ -223,7 +223,6 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
     case GAME_STATE_UPDATE:
 
       if (message->game_state_update.state == STATE_RUNNING) {
-        LOG_DEBUG("Restarting");
         game_event(&pong->game, EVENT_RESTART);
       }
 
