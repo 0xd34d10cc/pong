@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 
-#define HIT_SPEED_INC 0.005
+#define HIT_SPEED_INC 0.00025
 
 static float clamp(float x, float min, float max) {
   if (x < min) return min;
@@ -10,7 +10,42 @@ static float clamp(float x, float min, float max) {
   return x;
 }
 
-static const float PLAYER_SPEED = 0.015;
+struct GameObject {
+  Rectangle bbox;
+  Vec2 speed;
+}
+
+static float get_slope(Vec2 start, Vec2 end) {
+  float diff_y = end.y - start.y;
+  float diff_x = end.x - start.x;
+
+  return diff_y/diff_x;
+}
+
+static Vec2 find_intersect_point(Vec2 v11, Vec2 v12, Vec2 v21, Vec v22) {
+  //  {
+  //    y - y11 = k1 (x - x11)
+  //    y - y21 = k2 (x - x21)
+  //  }
+
+  // y = k1 (x - x11) + y11
+  // y = k2 (x - x21) + y21
+
+  // 0 = (k1 (x - x11) + y11) - (k2 (x - x21) + y21)
+  // y = k2 (x - x21) + y21
+
+  // 0 = (k1*x - k1*x11 + y11) - (k2*x - k2*x21 + y21)
+  // y = k2 (x - x21) + y21
+
+  // x = (k1 * x11 - k2 * x21 + y21 - y11) / (k1 - k2)  ????
+  // y = k2 (x - x21) + y21
+
+  float slope1 = get_slope(v11, v12);
+  float slope2 = get_slope(v21, v22);
+}
+
+// speed in unit/ms
+static const float PLAYER_SPEED = 0.0009;
 static const float BALL_SPEED = PLAYER_SPEED/2;
 
 void game_init(Game* game, bool is_multiplayer) {
@@ -132,16 +167,12 @@ void game_update_ball_position(Game* game) {
 
 
 void game_step_end(Game* game, int ms) {
-  // fixme: the code assumes ms == 16
-  (void)ms;
-
   if (game->state == STATE_LOST || game->state == STATE_WON) {
       // no game logic for this state
       return;
   }
 
-  game_update_player_position(game);
+  game_update_player_position(game, ms);
 
-  game_update_ball_position(game);
-
+  game_update_ball_position(game, ms);
 }

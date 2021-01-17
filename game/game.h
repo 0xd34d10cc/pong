@@ -35,8 +35,8 @@ void game_init(Game* game, bool is_multiplayer);
 GameState game_state(Game* game);
 void game_event(Game* game, Event event);
 void game_step_begin(Game* game);
-void game_update_player_position(Game* game);
-void game_update_ball_position(Game* game);
+void game_update_player_position(Game* game, int ms);
+void game_update_ball_position(Game* game, int ms);
 void game_step_end(Game* game, int ms);
 
 #endif // GAME_H

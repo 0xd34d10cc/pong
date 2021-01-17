@@ -404,11 +404,11 @@ void pong_run(Pong* pong) {
     // process events
     game_step_begin(&pong->game);
     pong_process_events(pong);
-    game_update_player_position(&pong->game);
+    game_update_player_position(&pong->game, TICK_MS);
 
     // in network case ball position will be updated in pong_process_network
     if (pong->connection_state.state == LOCAL) {
-      game_update_ball_position(&pong->game);
+      game_update_ball_position(&pong->game, TICK_MS);
     }
 
     // render game state
