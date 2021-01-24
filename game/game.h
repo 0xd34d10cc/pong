@@ -8,6 +8,12 @@
 
 #include "object.h"
 
+
+typedef struct GameObject {
+  Rectangle bbox;
+  Vec2 speed;
+} GameObject;
+
 typedef struct Game {
   int state;
   bool is_multiplayer;
@@ -15,7 +21,9 @@ typedef struct Game {
   GameObject player;
   GameObject opponent;
   GameObject ball;
-  GameObject board;
+
+  // Ordered clockwise starting from bottom wall;
+  GameObject walls[4];
 } Game;
 
 typedef enum {

@@ -10,62 +10,38 @@ static float clamp(float x, float min, float max) {
   return x;
 }
 
-struct GameObject {
-  Rectangle bbox;
-  Vec2 speed;
-}
-
-static float get_slope(Vec2 start, Vec2 end) {
-  float diff_y = end.y - start.y;
-  float diff_x = end.x - start.x;
-
-  return diff_y/diff_x;
-}
-
-static Vec2 find_intersect_point(Vec2 v11, Vec2 v12, Vec2 v21, Vec v22) {
-  //  {
-  //    y - y11 = k1 (x - x11)
-  //    y - y21 = k2 (x - x21)
-  //  }
-
-  // y = k1 (x - x11) + y11
-  // y = k2 (x - x21) + y21
-
-  // 0 = (k1 (x - x11) + y11) - (k2 (x - x21) + y21)
-  // y = k2 (x - x21) + y21
-
-  // 0 = (k1*x - k1*x11 + y11) - (k2*x - k2*x21 + y21)
-  // y = k2 (x - x21) + y21
-
-  // x = (k1 * x11 - k2 * x21 + y21 - y11) / (k1 - k2)  ????
-  // y = k2 (x - x21) + y21
-
-  float slope1 = get_slope(v11, v12);
-  float slope2 = get_slope(v21, v22);
-}
-
-
 static float find_intersection_time(GameObject player, GameObject ball, float dt) {
-  const float player_top_ordinate = player.bbox.position.y + player.bbox.size.y;
+  const bool is_player_lower = ball.bbox.position.y > player.bbox.position.y;
+  const float player_nearest_ordinate = is_player_lower ? player.bbox.position.y + player.bbox.size.y :
+                                                          player.bbox.position.y;
+
+  const float ball_nearest_ordinate = is_player_lower ? ball.bbox.position.y :
+                                                        ball.bbox.position.y + ball.bbox.size.y;
   // y2 = y1 + v1 * t
   // t = (y2 - y1) / v1
-  const float ordinate_intersection_time = (player_top_ordinate - ball.bbox.position.y) / ball.speed.y;
-  if (ordinate_intersection_time > dt) {
+  const float ordinate_intersection_time = (player_nearest_ordinate - ball_nearest_ordinate) / ball.speed.y;
+  if (ordinate_intersection_time > dt || ordinate_intersection_time < 0.0) {
     return -1.0;
   }
 
   const Vec2 ball_movement = vec2_mul(ball.speed, ordinate_intersection_time);
-  const Vec2 ball_position_at_intersection = vec2_add(ball.bbox.position, ball_movement);
+  ball.bbox.position = vec2_add(ball.bbox.position, ball_movement);
 
   const Vec2 player_movement = vec2_mul(player.speed, ordinate_intersection_time);
-  const Vec2 player_position_at_intersection = vec2_add(player.bbox.position, player_movement);
+  player.bbox.position = vec2_add(player.bbox.position, player_movement);
 
-  
+  if (!rect_intersect(&player.bbox, &ball.bbox)) {
+    return -1.0;
+  }
+
+  return ordinate_intersection_time;
 }
 
 // speed in unit/ms
 static const float PLAYER_SPEED = 0.0009;
 static const float BALL_SPEED = PLAYER_SPEED/2;
+static const float WALL_THICKNESS = 1.0;
+static const float WALL_LENGTH = 2.0;
 
 void game_init(Game* game, bool is_multiplayer) {
   game->state = STATE_RUNNING;
@@ -94,6 +70,21 @@ void game_init(Game* game, bool is_multiplayer) {
     .speed = { 0.0, 0.0 },
     .texture = TEXTURE_BLACK
   };
+
+  game->walls[0].bbox.position = (Vec2) {-1.0, -1.0 - WALL_THICKNESS}; // Bottom wall
+  game->walls[1].bbox.position = (Vec2) {-1.0 - WALL_THICKNESS, -1.0}; // Left wall
+  game->walls[2].bbox.position = (Vec2) {-1.0, 1.0}; // Top wall
+  game->walls[3].bbox.position = (Vec2) {1.0, -1.0}; // Right wall
+
+  for(int wall_index = 0; wall_index < 4; ++wall_index) {
+    game->walls[wall_index].speed = (Vec2) {0.0, 0.0};
+    if(wall_index % 2 == 0) { // Top and Bottom walls sizes
+      game->walls[wall_index].bbox.size = (Vec2) {WALL_LENGTH, WALL_THICKNESS};
+    }
+    else { // Left and Right walls sizes
+      game->walls[wall_index].bbox.size = (Vec2) {WALL_THICKNESS, WALL_LENGTH};
+    }
+  }
 }
 
 GameState game_state(Game* game) {
@@ -185,13 +176,18 @@ void game_update_ball_position(Game* game) {
 }
 
 
-void game_step_end(Game* game, int ms) {
+void game_step_end(Game* game, float dt) {
   if (game->state == STATE_LOST || game->state == STATE_WON) {
       // no game logic for this state
       return;
   }
 
-  game_update_player_position(game, ms);
+  while (game->state == STATE_RUNNING && dt > 0.0) {
+    const float player_intersection_time = find_intersection_time(game->player, game->ball, dt);
+    const float opponent_intersection_time = find_intersection_time(game->opponent, game->ball, dt);
 
-  game_update_ball_position(game, ms);
+    for(int i = 0; i < 4; ++i) {
+       const float wall_intersection = 
+    }
+  }
 }
