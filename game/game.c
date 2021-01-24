@@ -44,6 +44,25 @@ static Vec2 find_intersect_point(Vec2 v11, Vec2 v12, Vec2 v21, Vec v22) {
   float slope2 = get_slope(v21, v22);
 }
 
+
+static float find_intersection_time(GameObject player, GameObject ball, float dt) {
+  const float player_top_ordinate = player.bbox.position.y + player.bbox.size.y;
+  // y2 = y1 + v1 * t
+  // t = (y2 - y1) / v1
+  const float ordinate_intersection_time = (player_top_ordinate - ball.bbox.position.y) / ball.speed.y;
+  if (ordinate_intersection_time > dt) {
+    return -1.0;
+  }
+
+  const Vec2 ball_movement = vec2_mul(ball.speed, ordinate_intersection_time);
+  const Vec2 ball_position_at_intersection = vec2_add(ball.bbox.position, ball_movement);
+
+  const Vec2 player_movement = vec2_mul(player.speed, ordinate_intersection_time);
+  const Vec2 player_position_at_intersection = vec2_add(player.bbox.position, player_movement);
+
+  
+}
+
 // speed in unit/ms
 static const float PLAYER_SPEED = 0.0009;
 static const float BALL_SPEED = PLAYER_SPEED/2;
