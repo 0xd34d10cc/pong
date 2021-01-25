@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "layout.h"
 #include "game/game.h"
 #include "log.h"
 #include "ppm.h"
@@ -179,19 +180,14 @@ static bool renderer_init_buffers(Renderer* renderer) {
   index_buffer_init(&renderer->indices, sizeof(unsigned int) * MAX_INDICES);
   index_buffer_bind(&renderer->indices);
 
-  // TODO: abstract
+  VertexLayout layout;
+  layout_init(&layout);
+  layout_float(&layout, renderer->attributes.pos, 2);
+  layout_bytes(&layout, renderer->attributes.color, 4);
+
   ObjectID vertex_array;
   vgl.glGenVertexArrays(1, &vertex_array);
-  vgl.glBindVertexArray(vertex_array);
-
-  vgl.glEnableVertexAttribArray(renderer->attributes.pos);
-  vgl.glVertexAttribPointer(renderer->attributes.pos, 2, GL_FLOAT, GL_FALSE,
-                           sizeof(Vertex), (const void*)offsetof(Vertex, position));
-
-  vgl.glEnableVertexAttribArray(renderer->attributes.color);
-  vgl.glVertexAttribPointer(renderer->attributes.color, 4, GL_UNSIGNED_BYTE, GL_TRUE,
-                            sizeof(Vertex), (const void*)offsetof(Vertex, color));
-
+  layout_set(&layout, vertex_array);
   renderer->vertex_array = vertex_array;
 
   return true;
@@ -284,6 +280,8 @@ static void render_rectangle(Renderer* renderer, Rectangle rect) {
   // setup shader variables
   shader_bind(&renderer->shader);
 
+  // TODO: avoid transferring this matrix to GPU every draw call.
+  //       It is constant, so it should be enough to send it a single time.
   float ortho[4][4] = {
     { 1.0f,  0.0f,  0.0f, 0.0f},
     { 0.0f,  1.0f,  0.0f, 0.0f},
