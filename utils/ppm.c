@@ -38,7 +38,7 @@ static int ppm_load(PPM* image, FILE* file) {
   }
 
   size_t max_pixel_value;
-  if (fscanf(file, "%zu", &max_pixel_value) != 1 || max_pixel_value != 255) {
+  if (fscanf(file, "%zu ", &max_pixel_value) != 1 || max_pixel_value != 255) {
     return -1;
   }
 

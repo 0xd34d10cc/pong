@@ -6,22 +6,16 @@
 #define BALL_WIDTH 0.05
 #define BALL_HEIGHT 0.05
 
-#include "rectangle.h"
+#include "object.h"
 
 typedef struct Game {
   int state;
   bool is_multiplayer;
 
-  Rectangle player;
-  Vec2 player_speed;
-
-  Rectangle opponent;
-  Vec2 opponent_speed;
-
-  Rectangle ball;
-  Vec2 ball_speed;
-
-  Rectangle board;
+  GameObject player;
+  GameObject opponent;
+  GameObject ball;
+  GameObject board;
 } Game;
 
 typedef enum {

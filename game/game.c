@@ -16,16 +16,29 @@ void game_init(Game* game, bool is_multiplayer) {
   game->state = STATE_RUNNING;
   game->is_multiplayer = is_multiplayer;
 
-  game->player = (Rectangle) { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
-  game->player_speed = (Vec2) {0.0, 0.0};
+  game->player = (GameObject) {
+    .bbox = { .position = {0.0, -1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT } },
+    .speed = { 0.0, 0.0 },
+    .texture = TEXTURE_WHITE
+  };
 
-  game->opponent = (Rectangle) { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT}};
-  game->opponent_speed = (Vec2) {0.0, 0.0};
+  game->opponent = (GameObject) {
+    .bbox = { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT } },
+    .speed = { 0.0, 0.0 },
+    .texture = TEXTURE_WHITE
+  };
 
-  game->ball = (Rectangle) {.position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT}};
-  game->ball_speed = (Vec2) {BALL_SPEED, BALL_SPEED};
+  game->ball = (GameObject) {
+    .bbox = { .position = {0.0, 0.0}, .size = {BALL_WIDTH, BALL_HEIGHT } },
+    .speed = { BALL_SPEED, BALL_SPEED },
+    .texture = TEXTURE_WHITE
+  };
 
-  game->board = (Rectangle) {.position = {-1.0, -1.0}, .size = {2, 2}};
+  game->board = (GameObject) {
+    .bbox = {.position = {-1.0, -1.0}, .size = { 2.0, 2.0 } },
+    .speed = { 0.0, 0.0 },
+    .texture = TEXTURE_BLACK
+  };
 }
 
 GameState game_state(Game* game) {
@@ -35,10 +48,10 @@ GameState game_state(Game* game) {
 void game_event(Game* game, Event event) {
   switch (event) {
     case EVENT_MOVE_LEFT:
-      game->player_speed.x = -PLAYER_SPEED;
+      game->player.speed.x = -PLAYER_SPEED;
       break;
     case EVENT_MOVE_RIGHT:
-      game->player_speed.x = PLAYER_SPEED;
+      game->player.speed.x = PLAYER_SPEED;
       break;
     case EVENT_RESTART:
       if (game->state != STATE_RUNNING) {
@@ -49,57 +62,57 @@ void game_event(Game* game, Event event) {
 }
 
 void game_step_begin(Game* game) {
-    game->player_speed.x = 0;
+    game->player.speed.x = 0;
 }
 
 void game_set_player_speed(Game* game, Vec2 speed) {
-  game->player_speed = speed;
+  game->player.speed = speed;
 }
 
 void game_update_player_position(Game* game) {
-  game->player.position = vec2_add(game->player.position, game->player_speed);
-  rect_clamp(&game->player, &game->board);
+  game->player.bbox.position = vec2_add(game->player.bbox.position, game->player.speed);
+  rect_clamp(&game->player.bbox, &game->board.bbox);
 
-  game->opponent.position = vec2_add(game->opponent.position, game->opponent_speed);
-  rect_clamp(&game->opponent, &game->board);
+  game->opponent.bbox.position = vec2_add(game->opponent.bbox.position, game->opponent.speed);
+  rect_clamp(&game->opponent.bbox, &game->board.bbox);
 }
 
 // TODO: Rewrite all rectangles + speed to something like GameObject {Rectangle; Speed}
 static void process_player_hit(Game* game, Rectangle* player, Vec2 player_speed) {
-  bool curr_intersect = rect_intersect(&game->ball, player);
-  Rectangle next_frame_ball = game->ball;
-  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball_speed);
+  bool curr_intersect = rect_intersect(&game->ball.bbox, player);
+  Rectangle next_frame_ball = game->ball.bbox;
+  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball.speed);
   bool next_intersect = rect_intersect(&next_frame_ball, player);
 
   if (curr_intersect || next_intersect) {
-    game->ball_speed.y = -game->ball_speed.y;
-    if (game->ball_speed.y  < 0) {
-      game->ball_speed.y -= HIT_SPEED_INC;
+    game->ball.speed.y = -game->ball.speed.y;
+    if (game->ball.speed.y  < 0) {
+      game->ball.speed.y -= HIT_SPEED_INC;
     } else {
-      game->ball_speed.y += HIT_SPEED_INC;
+      game->ball.speed.y += HIT_SPEED_INC;
     }
 
-    if (game->ball_speed.x < 0) {
-      game->ball_speed.x -= HIT_SPEED_INC;
+    if (game->ball.speed.x < 0) {
+      game->ball.speed.x -= HIT_SPEED_INC;
     } else {
-      game->ball_speed.x += HIT_SPEED_INC;
+      game->ball.speed.x += HIT_SPEED_INC;
     }
 
-    if ((player_speed.x != 0) && (player_speed.x > 0) != (game->ball_speed.x > 0)) {
-      game->ball_speed.x = -game->ball_speed.x;
+    if ((player_speed.x != 0) && (player_speed.x > 0) != (game->ball.speed.x > 0)) {
+      game->ball.speed.x = -game->ball.speed.x;
     }
   }
 }
 
 void game_update_ball_position(Game* game) {
-  game->ball.position = vec2_add(game->ball.position, game->ball_speed);
-  if (game->ball.position.y < game->board.position.y) {
+  game->ball.bbox.position = vec2_add(game->ball.bbox.position, game->ball.speed);
+  if (game->ball.bbox.position.y < game->board.bbox.position.y) {
     game->state = STATE_LOST;
   }
 
-  if (game->ball.position.y > game->board.position.y + game->board.size.y) {
+  if (game->ball.bbox.position.y > game->board.bbox.position.y + game->board.bbox.size.y) {
     if (!game->is_multiplayer) {
-      game->ball_speed.y = -game->ball_speed.y;
+      game->ball.speed.y = -game->ball.speed.y;
     }
     else {
       game->state = STATE_WON;
@@ -107,13 +120,13 @@ void game_update_ball_position(Game* game) {
   }
 
   // floor/wall collisions
-  if (game->ball.position.x <= game->board.position.x ||
-      game->ball.position.x + game->ball.size.x >= game->board.position.x + game->board.size.x) {
-    game->ball_speed.x = -game->ball_speed.x;
+  if (game->ball.bbox.position.x <= game->board.bbox.position.x ||
+      game->ball.bbox.position.x + game->ball.bbox.size.x >= game->board.bbox.position.x + game->board.bbox.size.x) {
+    game->ball.speed.x = -game->ball.speed.x;
   }
 
-  process_player_hit(game, &game->player, game->player_speed);
-  process_player_hit(game, &game->opponent, game->opponent_speed);
+  process_player_hit(game, &game->player.bbox, game->player.speed);
+  process_player_hit(game, &game->opponent.bbox, game->opponent.speed);
 }
 
 

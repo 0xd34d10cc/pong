@@ -73,10 +73,11 @@ static void GLAPIENTRY opengl_debug_log(
 
 typedef struct {
   float position[2];
+  float uv[2];
   unsigned char color[4];
 } Vertex;
 
-static_assert(12 == sizeof(Vertex), "Unexpected padding in Vertex");
+static_assert(20 == sizeof(Vertex), "Unexpected padding in Vertex");
 
 static AttributeID var_id(Renderer* renderer, const char* name, bool is_uniform) {
   AttributeID id = is_uniform ? shader_uniform(&renderer->shader, name)
@@ -97,10 +98,13 @@ static bool renderer_init_shader(Renderer* renderer) {
     "#version 300 es\n"
     "uniform mat4 projection;\n"
     "in vec2 in_pos;\n"
+    "in vec2 in_uv;\n"
     "in vec4 in_color;\n"
     "out vec4 pixel_color;\n"
+    "out vec2 uv_coords;\n"
     "void main() {\n"
     "  pixel_color = in_color;\n"
+    "  uv_coords = in_uv;\n"
     "  gl_Position = projection * vec4(in_pos.xy, 0, 1);\n"
     "}\n";
 
@@ -109,10 +113,12 @@ static bool renderer_init_shader(Renderer* renderer) {
   const char* pixel_shader =
     "#version 300 es\n"
     "precision mediump float;\n"
+    "uniform sampler2D texture_id;\n"
     "in vec4 pixel_color;\n"
+    "in vec2 uv_coords;\n"
     "out vec4 out_color;\n"
     "void main() {\n"
-    "  out_color = pixel_color;\n"
+    "  out_color = pixel_color * texture(texture_id, uv_coords.st);\n"
     "}\n";
 
   if (shader_compile(&renderer->shader, vertex_shader, pixel_shader) < 0) {
@@ -121,14 +127,19 @@ static bool renderer_init_shader(Renderer* renderer) {
   }
 
   renderer->attributes.pos   = var_id(renderer, "in_pos", false);
+  renderer->attributes.uv    = var_id(renderer, "in_uv", false);
   renderer->attributes.color = var_id(renderer, "in_color", false);
 
-  if (renderer->attributes.pos == -1 || renderer->attributes.color == -1) {
+  if (renderer->attributes.pos == -1 ||
+      renderer->attributes.uv == -1 ||
+      renderer->attributes.color == -1) {
     return false;
   }
 
   renderer->attributes.projection = var_id(renderer, "projection", true);
-  if (renderer->attributes.projection == -1) {
+  renderer->attributes.texture = var_id(renderer, "texture_id", true);
+  if (renderer->attributes.projection == -1 ||
+      renderer->attributes.texture == -1) {
     return false;
   }
 
@@ -183,6 +194,7 @@ static bool renderer_init_buffers(Renderer* renderer) {
   VertexLayout layout;
   layout_init(&layout);
   layout_float(&layout, renderer->attributes.pos, 2);
+  layout_float(&layout, renderer->attributes.uv, 2);
   layout_bytes(&layout, renderer->attributes.color, 4);
 
   ObjectID vertex_array;
@@ -206,8 +218,8 @@ static bool load_texture(Texture* texture, const char* path) {
   return true;
 }
 
-static bool gen_uniform_texture(Texture* texture, char r, char g, char b, char a) {
-  unsigned char color[4] = { r, g, b, a };
+static bool gen_uniform_texture(Texture* texture, char r, char g, char b) {
+  unsigned char color[3] = { r, g, b };
   texture_init(texture);
   texture_set(texture, color, 1, 1);
   return true;
@@ -216,15 +228,15 @@ static bool gen_uniform_texture(Texture* texture, char r, char g, char b, char a
 static bool gen_texture(Texture* texture, TextureID id) {
   switch (id) {
     case TEXTURE_WHITE:
-      return gen_uniform_texture(texture, 0xff, 0xff, 0xff, 0xff);
+      return gen_uniform_texture(texture, 0xff, 0xff, 0xff);
     case TEXTURE_BLACK:
-      return gen_uniform_texture(texture, 0x00, 0x00, 0x00, 0xff);
+      return gen_uniform_texture(texture, 0x00, 0x00, 0x00);
     case TEXTURE_RED:
-      return gen_uniform_texture(texture, 0xff, 0x00, 0x00, 0xff);
+      return gen_uniform_texture(texture, 0xff, 0x00, 0x00);
     case TEXTURE_GREEN:
-      return gen_uniform_texture(texture, 0x00, 0xff, 0x00, 0xff);
+      return gen_uniform_texture(texture, 0x00, 0xff, 0x00);
     case TEXTURE_BLUE:
-      return gen_uniform_texture(texture, 0x00, 0x00, 0xff, 0xff);
+      return gen_uniform_texture(texture, 0x00, 0x00, 0xff);
     default:
       PANIC("Unable to generate texture with id = %d", id);
   }
@@ -236,21 +248,21 @@ bool renderer_load_textures(Renderer* renderer) {
   const char* paths[] = {
     [TEXTURE_WHITE] = NULL,
     [TEXTURE_BLACK] = NULL,
-    [TEXTURE_RED] = NULL,
+    [TEXTURE_RED]   = NULL,
     [TEXTURE_GREEN] = NULL,
-    [TEXTURE_BLUE] = NULL,
-    [TEXTURE_LOST] = "assets/lose.ppm",
+    [TEXTURE_BLUE]  = NULL,
+    [TEXTURE_LOST]  = "assets/lost.ppm",
   };
 
   static_assert(sizeof(paths) / sizeof(*paths) == TEXTURE_MAX, "Not all texture paths are set");
   for (int i = 0; i < TEXTURE_MAX; ++i) {
-    if (paths[i]) {
-      if (!load_texture(&renderer->textures[i], paths[i])) {
-        return false;
-      }
-    }
-    else {
+    if (!paths[i]) {
       gen_texture(&renderer->textures[i], i);
+      continue;
+    }
+
+    if (!load_texture(&renderer->textures[i], paths[i])) {
+      return false;
     }
   }
 
@@ -288,6 +300,9 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
 static void renderer_release_buffers(Renderer* renderer) {
   index_buffer_release(&renderer->indices);
   vertex_buffer_release(&renderer->vertices);
+  for (int i = 0; i < TEXTURE_MAX; ++i) {
+    texture_release(&renderer->textures[i]);
+  }
   vgl.glDeleteVertexArrays(1, &renderer->vertex_array);
 }
 
@@ -297,25 +312,25 @@ void renderer_close(Renderer* renderer) {
   SDL_GL_DeleteContext(renderer->context);
 }
 
-static void render_rectangle(Renderer* renderer, Rectangle rect) {
-  float x = rect.position.x;
-  float y = rect.position.y;
-  float w = rect.size.x;
-  float h = rect.size.y;
+static void render_object(Renderer* renderer, GameObject* object) {
+  float x = object->bbox.position.x;
+  float y = object->bbox.position.y;
+  float w = object->bbox.size.x;
+  float h = object->bbox.size.y;
 
-  Vertex rect_vertices[] = {
-    { .position = {x,     y    }, .color = {0xff, 0xff, 0xff} },
-    { .position = {x + w, y    }, .color = {0xff, 0xff, 0xff} },
-    { .position = {x,     y + h}, .color = {0xff, 0xff, 0xff} },
-    { .position = {x + w, y + h}, .color = {0xff, 0xff, 0xff} }
+  Vertex object_vertices[] = {
+    { .position = {x,     y    }, .uv = { 0.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x + w, y    }, .uv = { 1.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x,     y + h}, .uv = { 0.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x + w, y + h}, .uv = { 1.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} }
   };
 
   vertex_buffer_bind(&renderer->vertices);
   Vertex* vertices = vertex_buffer_map(&renderer->vertices);
-  memcpy(vertices, rect_vertices, sizeof(rect_vertices));
+  memcpy(vertices, object_vertices, sizeof(object_vertices));
   vertex_buffer_unmap(&renderer->vertices);
 
-  unsigned int rect_indices[] = {0, 1, 2, 1, 2, 3};
+  unsigned int rect_indices[] = {0, 1, 2, 3, 2, 1};
 
   index_buffer_bind(&renderer->indices);
   unsigned int* indices = index_buffer_map(&renderer->indices);
@@ -334,20 +349,11 @@ static void render_rectangle(Renderer* renderer, Rectangle rect) {
     { 0.0f,  0.0f,  0.0f, 1.0f}
   };
   vgl.glUniformMatrix4fv(renderer->attributes.projection, 1, GL_FALSE, &ortho[0][0]);
+  vgl.glUniform1i(renderer->attributes.texture, 0);
 
+  texture_bind(&renderer->textures[object->texture]);
   // actually draw
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-}
-
-static void render_lost(Renderer* renderer) {
-  (void)renderer;
-  // draw lose screen
-}
-
-static void render_running(Renderer* renderer, Game* game) {
-  render_rectangle(renderer, game->player);
-  render_rectangle(renderer, game->opponent);
-  render_rectangle(renderer, game->ball);
 }
 
 static void renderer_clear(Renderer* renderer) {
@@ -363,20 +369,11 @@ static void renderer_present(Renderer* renderer) {
   SDL_GL_SwapWindow(renderer->window);
 }
 
-void renderer_render(Renderer* renderer, Game* game) {
+void renderer_render(Renderer* renderer, GameObject** objects, int n) {
   renderer_clear(renderer);
 
-  // render everything
-  switch (game_state(game)) {
-    case STATE_LOST:
-      render_lost(renderer);
-      break;
-    case STATE_RUNNING:
-      render_running(renderer, game);
-      break;
-    case STATE_WON:
-      // TODO: render
-      break;
+  for (int i = 0; i < n; ++i) {
+    render_object(renderer, objects[i]);
   }
 
   renderer_present(renderer);

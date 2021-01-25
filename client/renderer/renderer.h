@@ -9,7 +9,6 @@
 #include "game/object.h"
 #include "game/texture_id.h"
 
-typedef struct Game Game;
 typedef struct SDL_Window SDL_Window;
 typedef void* SDL_GLContext;
 
@@ -17,9 +16,11 @@ typedef struct {
   // Vertex attributes
   AttributeID pos;   // position of the vertex
   AttributeID color; // color of the vertex
+  AttributeID uv;    // texture coordinates
 
   // Uniform variables
   AttributeID projection; // projection matrix
+  AttributeID texture;    // texture id
 } Attributes;
 
 typedef struct {
@@ -37,7 +38,7 @@ typedef struct {
 
 // returns 0 on success
 int renderer_init(Renderer* renderer, SDL_Window* window);
-void renderer_render(Renderer* renderer, Game* game);
+void renderer_render(Renderer* renderer, GameObject** objects, int n);
 void renderer_close(Renderer* renderer);
 
 #endif // RENDERER_H
