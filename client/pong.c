@@ -1,11 +1,13 @@
 #include "pong.h"
+
 #include "log.h"
 #include "game/protocol.h"
-#include "bool.h"
 
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_timer.h>
+
+#include <stdbool.h>
 
 #define DEFAULT_WINDOW_WIDTH 800
 #define DEFAULT_WINDOW_HEIGHT 600
@@ -179,8 +181,8 @@ static int prepare_client_message(Pong* pong) {
     }
     case PLAYING: {
       msg.id = CLIENT_UPDATE;
-      msg.client_update.position = pong->game.player.position;
-      msg.client_update.speed = pong->game.player_speed;
+      msg.client_update.position = pong->game.player.bbox.position;
+      msg.client_update.speed = pong->game.player.speed;
       prepare_and_send(pong, &msg);
       break;
     }
@@ -213,10 +215,10 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
         pong->game_session.state = PLAYING;
       }
 
-      pong->game.opponent.position.x = message->server_update.opponent_position.x;
-      pong->game.opponent.position.y = message->server_update.opponent_position.y;
-      pong->game.ball.position.x = message->server_update.ball_position.x;
-      pong->game.ball.position.y = message->server_update.ball_position.y;
+      pong->game.opponent.bbox.position.x = message->server_update.opponent_position.x;
+      pong->game.opponent.bbox.position.y = message->server_update.opponent_position.y;
+      pong->game.ball.bbox.position.x = message->server_update.ball_position.x;
+      pong->game.ball.bbox.position.y = message->server_update.ball_position.y;
 
       break;
 
@@ -361,6 +363,38 @@ static int pong_process_network(Pong* pong, int timeout_ms) {
   return 0;
 }
 
+static void pong_render(Pong* pong) {
+  Game* game = &pong->game;
+  switch (game_state(game)) {
+    case STATE_RUNNING: {
+      GameObject* objects[] = { &game->player, &game->ball, &game->opponent };
+      int n_objects = sizeof(objects) / sizeof(*objects);
+      renderer_render(&pong->renderer, objects, game->is_multiplayer ? n_objects : n_objects - 1);
+      break;
+    }
+    case STATE_WON: {
+      static GameObject won_screen = {
+        .bbox = { .position = { -1.0, -1.0 }, .size = { 2.0, 2.0 } },
+        .speed = { 0.0, 0.0 },
+        .texture = TEXTURE_WON
+      };
+      GameObject* objects[] = { &won_screen };
+      renderer_render(&pong->renderer, objects, sizeof(objects) / sizeof(*objects));
+      break;
+    }
+    case STATE_LOST: {
+      static GameObject lost_screen = {
+        .bbox = { .position = { -1.0, -1.0 }, .size = { 2.0, 2.0 } },
+        .speed = { 0.0, 0.0},
+        .texture = TEXTURE_LOST
+      };
+      GameObject* objects[] = { &lost_screen };
+      renderer_render(&pong->renderer, objects, sizeof(objects) / sizeof(*objects));
+      break;
+    }
+  }
+}
+
 static const int TICK_MS = 16;
 
 void pong_run(Pong* pong) {
@@ -378,7 +412,7 @@ void pong_run(Pong* pong) {
     }
 
     // render game state
-    renderer_render(&pong->renderer, &pong->game);
+    pong_render(pong);
 
     // wait for next frame
     if (pong->connection_state.state == LOCAL) {

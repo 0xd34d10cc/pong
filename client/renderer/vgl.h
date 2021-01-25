@@ -42,7 +42,8 @@ typedef struct VGL {
   PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
   // Set 4x4 matrix uniform variable
   PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-
+  // Set integer uniform variable
+  PFNGLUNIFORM1IPROC glUniform1i;
 
   // Allocate new vertex arrays (array of vertex buffers, aka vao)
   PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;

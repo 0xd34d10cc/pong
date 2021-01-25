@@ -1,7 +1,7 @@
 #ifndef POOL_H
 #define POOL_H
 
-#include "bool.h"
+#include <stdbool.h>
 
 // returns capacity required to store n objects of type in pool
 #define POOL_CAPACITY(type, n) (n * sizeof(type) + (n + 7) / 8)

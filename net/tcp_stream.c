@@ -2,13 +2,12 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
-#include "bool.h"
 
 
 int tcp_init(TcpStream* stream, Reactor* loop) {

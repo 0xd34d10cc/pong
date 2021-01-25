@@ -5,8 +5,6 @@
 #include <stdalign.h>
 #include <string.h>
 
-#include "bool.h"
-
 // obtain a pointer to start of "in use" bitmask
 static unsigned char* pool_slots(Pool* pool) {
   return pool_at(pool, pool->max_objects);

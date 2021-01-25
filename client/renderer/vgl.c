@@ -30,6 +30,7 @@ int vgl_init(VGL* table) {
   TRY_LOAD(glGetUniformLocation);
   TRY_LOAD(glGetAttribLocation);
   TRY_LOAD(glUniformMatrix4fv);
+  TRY_LOAD(glUniform1i);
 
   TRY_LOAD(glGenVertexArrays);
   TRY_LOAD(glDeleteVertexArrays);
