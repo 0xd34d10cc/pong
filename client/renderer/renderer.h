@@ -6,6 +6,9 @@
 #include "buffer.h"
 #include "texture.h"
 
+#include "game/object.h"
+#include "game/texture_id.h"
+
 typedef struct Game Game;
 typedef struct SDL_Window SDL_Window;
 typedef void* SDL_GLContext;
@@ -25,6 +28,7 @@ typedef struct {
 
   Shader     shader;
   Attributes attributes; // shader attributes
+  Texture    textures[TEXTURE_MAX];
 
   ObjectID vertex_array; // array of buffer objects
   VertexBuffer vertices; // actual vertex data (positions, texture mappings, colors)

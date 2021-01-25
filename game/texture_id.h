@@ -1,0 +1,14 @@
+#ifndef TEXTURE_ID_H
+#define TEXTURE_ID_H
+
+typedef enum {
+  TEXTURE_WHITE,
+  TEXTURE_BLACK,
+  TEXTURE_RED,
+  TEXTURE_GREEN,
+  TEXTURE_BLUE,
+  TEXTURE_LOST,
+  TEXTURE_MAX
+} TextureID;
+
+#endif // TEXTURE_ID_H

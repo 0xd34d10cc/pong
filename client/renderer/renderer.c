@@ -206,10 +206,55 @@ static bool load_texture(Texture* texture, const char* path) {
   return true;
 }
 
+static bool gen_uniform_texture(Texture* texture, char r, char g, char b, char a) {
+  unsigned char color[4] = { r, g, b, a };
+  texture_init(texture);
+  texture_set(texture, color, 1, 1);
+  return true;
+}
+
+static bool gen_texture(Texture* texture, TextureID id) {
+  switch (id) {
+    case TEXTURE_WHITE:
+      return gen_uniform_texture(texture, 0xff, 0xff, 0xff, 0xff);
+    case TEXTURE_BLACK:
+      return gen_uniform_texture(texture, 0x00, 0x00, 0x00, 0xff);
+    case TEXTURE_RED:
+      return gen_uniform_texture(texture, 0xff, 0x00, 0x00, 0xff);
+    case TEXTURE_GREEN:
+      return gen_uniform_texture(texture, 0x00, 0xff, 0x00, 0xff);
+    case TEXTURE_BLUE:
+      return gen_uniform_texture(texture, 0x00, 0x00, 0xff, 0xff);
+    default:
+      PANIC("Unable to generate texture with id = %d", id);
+  }
+
+  return false;
+}
+
 bool renderer_load_textures(Renderer* renderer) {
-  (void)renderer;
-  Texture texture;
-  return load_texture(&texture, "assets/lose.ppm");
+  const char* paths[] = {
+    [TEXTURE_WHITE] = NULL,
+    [TEXTURE_BLACK] = NULL,
+    [TEXTURE_RED] = NULL,
+    [TEXTURE_GREEN] = NULL,
+    [TEXTURE_BLUE] = NULL,
+    [TEXTURE_LOST] = "assets/lose.ppm",
+  };
+
+  static_assert(sizeof(paths) / sizeof(*paths) == TEXTURE_MAX, "Not all texture paths are set");
+  for (int i = 0; i < TEXTURE_MAX; ++i) {
+    if (paths[i]) {
+      if (!load_texture(&renderer->textures[i], paths[i])) {
+        return false;
+      }
+    }
+    else {
+      gen_texture(&renderer->textures[i], i);
+    }
+  }
+
+  return true;
 }
 
 int renderer_init(Renderer* renderer, SDL_Window* window) {
