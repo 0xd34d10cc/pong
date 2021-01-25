@@ -48,7 +48,7 @@ static int ppm_load(PPM* image, FILE* file) {
   if (plain) {
     for (int i = 0; i < n; ++i) {
       int r, g, b;
-      if (fscanf(file, "%d %d %d", &r, &g, &b) != 3) {
+      if (fscanf(file, "%d %d %d ", &r, &g, &b) != 3) {
         free(image->data);
         return -1;
       }
@@ -62,6 +62,11 @@ static int ppm_load(PPM* image, FILE* file) {
       free(image->data);
       return -1;
     }
+  }
+
+  if (fgetc(file) != EOF) {
+    LOG_DEBUG("Extra data left after reading ppm image");
+    return -1;
   }
 
   return 0;

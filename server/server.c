@@ -3,12 +3,12 @@
 #include <errno.h>
 #include <string.h>
 #include <stdalign.h>
+#include <stdbool.h>
 
 #include <arpa/inet.h>
 #include <sys/timerfd.h>
 
 #include "log.h"
-#include "bool.h"
 
 
 static int connection_id(Connection* connection) {
@@ -178,19 +178,19 @@ static int process_active_lobby(Lobby* lobby, int id) {
 
   response.id = SERVER_UPDATE;
 
-  response.server_update.ball_position.x = lobby->game.ball.position.x;
-  response.server_update.ball_position.y = -1 * lobby->game.ball.position.y;
+  response.server_update.ball_position.x = lobby->game.ball.bbox.position.x;
+  response.server_update.ball_position.y = -1 * lobby->game.ball.bbox.position.y;
 
-  response.server_update.opponent_position.x = lobby->game.player.position.x;
-  response.server_update.opponent_position.y = -1 * lobby->game.player.position.y;
+  response.server_update.opponent_position.x = lobby->game.player.bbox.position.x;
+  response.server_update.opponent_position.y = -1 * lobby->game.player.bbox.position.y;
 
   if (send_message(lobby->guest, &response) < 0) {
     return -1;
   }
 
-  response.server_update.ball_position.y = lobby->game.ball.position.y;
-  response.server_update.opponent_position.x = lobby->game.opponent.position.x;
-  response.server_update.opponent_position.y = lobby->game.opponent.position.y;
+  response.server_update.ball_position.y = lobby->game.ball.bbox.position.y;
+  response.server_update.opponent_position.x = lobby->game.opponent.bbox.position.x;
+  response.server_update.opponent_position.y = lobby->game.opponent.bbox.position.y;
 
   if (send_message(lobby->owner, &response) < 0) {
     return -1;
@@ -255,10 +255,10 @@ static int server_client_update(Server* server, Connection* player, ClientUpdate
   }
 
   if(player->lobby->owner == player) {
-    player->lobby->game.player_speed = message->speed;
+    player->lobby->game.player.speed = message->speed;
   }
   else {
-    player->lobby->game.opponent_speed = message->speed;
+    player->lobby->game.opponent.speed = message->speed;
   }
 
   return 0;

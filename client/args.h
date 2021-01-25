@@ -1,8 +1,8 @@
 #ifndef ARGUMENT_PARSER_H
 #define ARGUMENT_PARSER_H
 
+#include <stdbool.h>
 #include "game/protocol.h"
-#include "bool.h"
 
 typedef enum GameMode {
   LOCAL_GAME = 0,

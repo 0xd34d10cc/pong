@@ -8,6 +8,7 @@ typedef enum {
   TEXTURE_GREEN,
   TEXTURE_BLUE,
   TEXTURE_LOST,
+  TEXTURE_WON,
   TEXTURE_MAX
 } TextureID;
 

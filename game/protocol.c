@@ -1,9 +1,9 @@
 #include "protocol.h"
 
 #include <string.h>
+#include <stdbool.h>
 
 #include "panic.h"
-#include "bool.h"
 
 
 static const size_t HEADER_SIZE = sizeof(unsigned short) + sizeof(unsigned short);

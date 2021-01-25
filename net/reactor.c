@@ -2,11 +2,10 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <sys/epoll.h>
 #include <unistd.h>
-
-#include "bool.h"
 
 
 int reactor_init(Reactor* reactor) {

@@ -252,6 +252,7 @@ bool renderer_load_textures(Renderer* renderer) {
     [TEXTURE_GREEN] = NULL,
     [TEXTURE_BLUE]  = NULL,
     [TEXTURE_LOST]  = "assets/lost.ppm",
+    [TEXTURE_WON]   = "assets/won.ppm"
   };
 
   static_assert(sizeof(paths) / sizeof(*paths) == TEXTURE_MAX, "Not all texture paths are set");
@@ -319,10 +320,10 @@ static void render_object(Renderer* renderer, GameObject* object) {
   float h = object->bbox.size.y;
 
   Vertex object_vertices[] = {
-    { .position = {x,     y    }, .uv = { 0.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
-    { .position = {x + w, y    }, .uv = { 1.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
-    { .position = {x,     y + h}, .uv = { 0.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
-    { .position = {x + w, y + h}, .uv = { 1.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} }
+    { .position = {x,     y    }, .uv = { 0.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x + w, y    }, .uv = { 1.0, 1.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x,     y + h}, .uv = { 0.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} },
+    { .position = {x + w, y + h}, .uv = { 1.0, 0.0 }, .color = {0xff, 0xff, 0xff, 0xff} }
   };
 
   vertex_buffer_bind(&renderer->vertices);
@@ -330,7 +331,7 @@ static void render_object(Renderer* renderer, GameObject* object) {
   memcpy(vertices, object_vertices, sizeof(object_vertices));
   vertex_buffer_unmap(&renderer->vertices);
 
-  unsigned int rect_indices[] = {0, 1, 2, 3, 2, 1};
+  unsigned int rect_indices[] = {0, 1, 2, 1, 2, 3};
 
   index_buffer_bind(&renderer->indices);
   unsigned int* indices = index_buffer_map(&renderer->indices);

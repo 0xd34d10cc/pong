@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <string.h>
 
-#include "bool.h"
 #include "log.h"
 #include "server.h"
 

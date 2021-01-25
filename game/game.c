@@ -1,5 +1,6 @@
 #include "game.h"
-#include "bool.h"
+
+#include <stdbool.h>
 
 #define HIT_SPEED_INC 0.005
 

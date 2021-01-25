@@ -1,11 +1,13 @@
 #include "pong.h"
+
 #include "log.h"
 #include "game/protocol.h"
-#include "bool.h"
 
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_timer.h>
+
+#include <stdbool.h>
 
 #define DEFAULT_WINDOW_WIDTH 800
 #define DEFAULT_WINDOW_HEIGHT 600
@@ -365,12 +367,19 @@ static void pong_render(Pong* pong) {
   Game* game = &pong->game;
   switch (game_state(game)) {
     case STATE_RUNNING: {
-      GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
-      renderer_render(&pong->renderer, objects, sizeof(objects) / sizeof(*objects));
+      GameObject* objects[] = { &game->player, &game->ball, &game->opponent };
+      int n_objects = sizeof(objects) / sizeof(*objects);
+      renderer_render(&pong->renderer, objects, game->is_multiplayer ? n_objects : n_objects - 1);
       break;
     }
     case STATE_WON: {
-      // TODO
+      static GameObject won_screen = {
+        .bbox = { .position = { -1.0, -1.0 }, .size = { 2.0, 2.0 } },
+        .speed = { 0.0, 0.0 },
+        .texture = TEXTURE_WON
+      };
+      GameObject* objects[] = { &won_screen };
+      renderer_render(&pong->renderer, objects, sizeof(objects) / sizeof(*objects));
       break;
     }
     case STATE_LOST: {
