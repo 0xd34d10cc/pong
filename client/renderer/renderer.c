@@ -301,13 +301,14 @@ int renderer_init(Renderer* renderer, SDL_Window* window) {
 static void renderer_release_buffers(Renderer* renderer) {
   index_buffer_release(&renderer->indices);
   vertex_buffer_release(&renderer->vertices);
-  for (int i = 0; i < TEXTURE_MAX; ++i) {
-    texture_release(&renderer->textures[i]);
-  }
   vgl.glDeleteVertexArrays(1, &renderer->vertex_array);
 }
 
 void renderer_close(Renderer* renderer) {
+  for (int i = 0; i < TEXTURE_MAX; ++i) {
+    texture_release(&renderer->textures[i]);
+  }
+
   renderer_release_buffers(renderer);
   shader_release(&renderer->shader);
   SDL_GL_DeleteContext(renderer->context);

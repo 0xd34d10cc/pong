@@ -15,8 +15,8 @@ typedef void* SDL_GLContext;
 typedef struct {
   // Vertex attributes
   AttributeID pos;   // position of the vertex
-  AttributeID color; // color of the vertex
   AttributeID uv;    // texture coordinates
+  AttributeID color; // color of the vertex
 
   // Uniform variables
   AttributeID projection; // projection matrix
