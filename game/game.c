@@ -149,10 +149,11 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
 }
 
 // speed in unit/ms
-static const float PLAYER_SPEED = 0.0009;
+static const float PLAYER_SPEED = 0.001;
 static const float BALL_SPEED = PLAYER_SPEED/2;
 static const float WALL_THICKNESS = 1.0;
 static const float WALL_LENGTH = 2.0;
+static const float EPSILON = 0.001;
 
 void game_init(Game* game, bool is_multiplayer) {
   game->state = STATE_RUNNING;
@@ -236,69 +237,13 @@ void game_set_player_speed(Game* game, Vec2 speed) {
   game->player.speed = speed;
 }
 
-void game_update_player_position(Game* game, int ms) {
-  (void)ms;
-  (void)game;
-}
-
-// TODO: Rewrite all rectangles + speed to something like GameObject {Rectangle; Speed}
-static void process_player_hit(Game* game, Rectangle* player, Vec2 player_speed) {
-  bool curr_intersect = rect_intersect(&game->ball.bbox, player);
-  Rectangle next_frame_ball = game->ball.bbox;
-  next_frame_ball.position = vec2_add(next_frame_ball.position, game->ball.speed);
-  bool next_intersect = rect_intersect(&next_frame_ball, player);
-
-  if (curr_intersect || next_intersect) {
-    game->ball.speed.y = -game->ball.speed.y;
-    if (game->ball.speed.y  < 0) {
-      game->ball.speed.y -= HIT_SPEED_INC;
-    } else {
-      game->ball.speed.y += HIT_SPEED_INC;
-    }
-
-    if (game->ball.speed.x < 0) {
-      game->ball.speed.x -= HIT_SPEED_INC;
-    } else {
-      game->ball.speed.x += HIT_SPEED_INC;
-    }
-
-    if ((player_speed.x != 0) && (player_speed.x > 0) != (game->ball.speed.x > 0)) {
-      game->ball.speed.x = -game->ball.speed.x;
-    }
-  }
-}
-
-void game_update_ball_position(Game* game, int ms) {
-  (void)ms;
-  game->ball.bbox.position = vec2_add(game->ball.bbox.position, game->ball.speed);
-  if (game->ball.bbox.position.y < -1.0) {
-    game->state = STATE_LOST;
-  }
-
-  if (game->ball.bbox.position.y > 1.0 ) {
-    if (!game->is_multiplayer) {
-      game->ball.speed.y = -game->ball.speed.y;
-    }
-    else {
-      game->state = STATE_WON;
-    }
-  }
-
-  // floor/wall collisions
-  if (game->ball.bbox.position.x <= -1.0 ||
-      game->ball.bbox.position.x + game->ball.bbox.size.x >= 1.0 ) {
-    game->ball.speed.x = -game->ball.speed.x;
-  }
-
-  process_player_hit(game, &game->player.bbox, game->player.speed);
-  process_player_hit(game, &game->opponent.bbox, game->opponent.speed);
-}
-
 void game_advance_time(Game* game, float dt) {
+  static const Rectangle board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
   GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
-
+  
   for(int i = 0; i < sizeof(objects) / sizeof(GameObject*); ++i) {
     objects[i]->bbox.position = vec2_add(objects[i]->bbox.position, vec2_mul(objects[i]->speed, dt));
+    rect_clamp(&objects[i]->bbox, &board);
   }
 }
 
@@ -326,8 +271,8 @@ void game_step_end(Game* game, float dt) {
       dt = 0.0;
     }
     else {
-      game_advance_time(game, collision.time);
-      dt -= collision.time;
+      game_advance_time(game, collision.time - EPSILON);
+      dt -= collision.time - EPSILON;
       switch(collision.with_what->collision_type) {
         case COLLISION_NONE:
           assert(false);
@@ -356,7 +301,8 @@ void game_step_end(Game* game, float dt) {
             collision.what->speed.x *= -1.0;
           }
 
-          collision.what->speed.y *= -1.0;
+          collision.what->speed.x *= 1.1;
+          collision.what->speed.y *= -1.1;
           break;
       }
     }

@@ -31,7 +31,7 @@ inline static bool rect_intersect(const Rectangle* r1, const Rectangle* r2) {
   return x_overlap && y_overlap;
 }
 
-inline static void rect_clamp(Rectangle* inner, Rectangle* outer) {
+inline static void rect_clamp(Rectangle* inner, const Rectangle* outer) {
   if (inner->position.x + inner->size.x > outer->position.x + outer->size.x) {
     inner->position.x = (outer->position.x + outer->size.x) - inner->size.x;
   }
