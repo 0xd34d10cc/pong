@@ -233,10 +233,6 @@ void game_step_begin(Game* game) {
     game->player.speed.x = 0;
 }
 
-void game_set_player_speed(Game* game, Vec2 speed) {
-  game->player.speed = speed;
-}
-
 void game_advance_time(Game* game, float dt) {
   static const Rectangle board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
   GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
