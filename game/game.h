@@ -9,11 +9,6 @@
 #include "object.h"
 
 
-typedef struct GameObject {
-  Rectangle bbox;
-  Vec2 speed;
-} GameObject;
-
 typedef struct Game {
   int state;
   bool is_multiplayer;
@@ -45,6 +40,6 @@ void game_event(Game* game, Event event);
 void game_step_begin(Game* game);
 void game_update_player_position(Game* game, int ms);
 void game_update_ball_position(Game* game, int ms);
-void game_step_end(Game* game, int ms);
+void game_step_end(Game* game, float ms);
 
 #endif // GAME_H
