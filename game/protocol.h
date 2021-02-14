@@ -51,18 +51,16 @@ typedef struct {
 
 // Client sends to server it's position and speed
 typedef struct {
-  Vec2 position;
   Vec2 speed;
 } ClientUpdate;
 
 // Server sends this to clients to update their position for opponent
 // and ball.
 typedef struct {
+  Vec2 player_position;
   Vec2 opponent_position;
-  Vec2 opponent_speed;
-
   Vec2 ball_position;
-  Vec2 ball_speed;
+
 } ServerUpdate;
 
 //Enum of possible client states

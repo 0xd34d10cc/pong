@@ -178,17 +178,27 @@ static int process_active_lobby(Lobby* lobby, int id) {
 
   response.id = SERVER_UPDATE;
 
+  // send to opponent
+  response.server_update.player_position.x = lobby->game.opponent.bbox.position.x;
+  response.server_update.player_position.y = -lobby->game.opponent.bbox.position.y - lobby->game.opponent.bbox.size.y;
+
   response.server_update.ball_position.x = lobby->game.ball.bbox.position.x;
-  response.server_update.ball_position.y = -1 * lobby->game.ball.bbox.position.y;
+  response.server_update.ball_position.y = -lobby->game.ball.bbox.position.y - lobby->game.ball.bbox.size.y;
 
   response.server_update.opponent_position.x = lobby->game.player.bbox.position.x;
-  response.server_update.opponent_position.y = -1 * lobby->game.player.bbox.position.y;
+  response.server_update.opponent_position.y = -lobby->game.player.bbox.position.y - lobby->game.player.bbox.size.y;
 
   if (send_message(lobby->guest, &response) < 0) {
     return -1;
   }
 
+  // send to player
+  response.server_update.player_position.x = lobby->game.player.bbox.position.x;
+  response.server_update.player_position.y = lobby->game.player.bbox.position.y;
+
+  response.server_update.ball_position.x = lobby->game.ball.bbox.position.x;
   response.server_update.ball_position.y = lobby->game.ball.bbox.position.y;
+
   response.server_update.opponent_position.x = lobby->game.opponent.bbox.position.x;
   response.server_update.opponent_position.y = lobby->game.opponent.bbox.position.y;
 

@@ -50,7 +50,7 @@ static Collision find_player_collision(GameObject* player, GameObject* ball, flo
   const Vec2 player_movement = vec2_mul(player_temp.speed, ordinate_intersection_time);
   player_temp.bbox.position = vec2_add(player_temp.bbox.position, player_movement);
 
-  
+
   if (!rect_intersect(&player_temp.bbox, &ball_temp.bbox)) {
     return NO_COLLISION;
   }
@@ -125,7 +125,7 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
   const float entry_time = x_entry_time > y_entry_time ? x_entry_time : y_entry_time;
   const float exit_time = x_exit_time < y_exit_time ? x_exit_time : y_exit_time;
 
-  if(entry_time > exit_time || x_entry_time < 0 && y_entry_time < 0 || 
+  if(entry_time > exit_time || x_entry_time < 0 && y_entry_time < 0 ||
     x_entry_time > dt || y_entry_time > dt) {
       return NO_COLLISION;
   }
@@ -167,7 +167,7 @@ void game_init(Game* game, bool is_multiplayer) {
   };
 
   game->opponent = (GameObject) {
-    .bbox = { .position = {0.0, 1.0}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT } },
+    .bbox = { .position = {0.0, 1.0-PLAYER_HEIGHT}, .size = {PLAYER_WIDTH, PLAYER_HEIGHT } },
     .speed = { 0.0, 0.0 },
     .texture = TEXTURE_WHITE,
     .collision_type = COLLISION_PLAYER
@@ -236,7 +236,7 @@ void game_step_begin(Game* game) {
 void game_advance_time(Game* game, float dt) {
   static const Rectangle board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
   GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
-  
+
   for(int i = 0; i < sizeof(objects) / sizeof(GameObject*); ++i) {
     objects[i]->bbox.position = vec2_add(objects[i]->bbox.position, vec2_mul(objects[i]->speed, dt));
     rect_clamp(&objects[i]->bbox, &board);
@@ -256,7 +256,7 @@ void game_step_end(Game* game, float dt) {
     min_collision(&collision, &player_collision);
     Collision opponent_collision = find_player_collision(&game->opponent, &game->ball, dt);
     min_collision(&collision, &opponent_collision);
-    
+
     for(int i = 0; i < 4; ++i) {
       Collision wall_collision = find_wall_collision(&game->ball, &game->walls[i], dt);
       min_collision(&collision, &wall_collision);
@@ -286,7 +286,7 @@ void game_step_end(Game* game, float dt) {
           if(collision.normal.x != 0.0) {
             collision.what->speed.x *= -1.0;
           }
-          
+
           if(collision.normal.y != 0.0) {
             collision.what->speed.y *= -1.0;
           }

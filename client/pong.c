@@ -181,7 +181,6 @@ static int prepare_client_message(Pong* pong) {
     }
     case PLAYING: {
       msg.id = CLIENT_UPDATE;
-      msg.client_update.position = pong->game.player.bbox.position;
       msg.client_update.speed = pong->game.player.speed;
       prepare_and_send(pong, &msg);
       break;
@@ -215,6 +214,8 @@ static int process_server_message(Pong* pong, ServerMessage* message) {
         pong->game_session.state = PLAYING;
       }
 
+      pong->game.player.bbox.position.x = message->server_update.player_position.x;
+      pong->game.player.bbox.position.y = message->server_update.player_position.y;
       pong->game.opponent.bbox.position.x = message->server_update.opponent_position.x;
       pong->game.opponent.bbox.position.y = message->server_update.opponent_position.y;
       pong->game.ball.bbox.position.x = message->server_update.ball_position.x;
@@ -392,10 +393,13 @@ static void pong_render(Pong* pong) {
       renderer_render(&pong->renderer, objects, sizeof(objects) / sizeof(*objects));
       break;
     }
+    default:
+      PANIC("UNHANDLED GAME STATE");
+      break;
   }
 }
 
-static const int TICK_MS = 16;
+static const int TICK_MS = 15;
 
 void pong_run(Pong* pong) {
   pong->running = true;
@@ -415,6 +419,8 @@ void pong_run(Pong* pong) {
 
     // wait for next frame
     if (pong->connection_state.state == LOCAL) {
+      // TODO: SDL_Delay to something more precision (usleep)
+      // Note: Count on a delay granularity of at least 10 ms. Some platforms have shorter clock ticks but this is the most common.
       SDL_Delay(TICK_MS);
     }
     else {
