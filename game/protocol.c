@@ -62,10 +62,9 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
         READ(server_message->error.status);
         break;
       case SERVER_UPDATE:
+        READ(server_message->server_update.player_position);
         READ(server_message->server_update.opponent_position);
-        READ(server_message->server_update.opponent_speed);
         READ(server_message->server_update.ball_position);
-        READ(server_message->server_update.ball_speed);
         break;
       case GAME_STATE_UPDATE:
         READ(server_message->game_state_update.state);
@@ -87,7 +86,6 @@ static int read_message(void* message, const char* data, size_t size, bool is_se
         READ_ENDING_STR(client_message->join_lobby.password);
         break;
       case CLIENT_UPDATE:
-        READ(client_message->client_update.position);
         READ(client_message->client_update.speed);
         break;
 
@@ -157,10 +155,9 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
         WRITE(server_message->error.status);
         break;
       case SERVER_UPDATE:
+        WRITE(server_message->server_update.player_position);
         WRITE(server_message->server_update.opponent_position);
-        WRITE(server_message->server_update.opponent_speed);
         WRITE(server_message->server_update.ball_position);
-        WRITE(server_message->server_update.ball_speed);
         break;
       case GAME_STATE_UPDATE:
         WRITE(server_message->game_state_update.state);
@@ -183,7 +180,6 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
         WRITE_STR(client_message->join_lobby.password);
         break;
       case CLIENT_UPDATE:
-        WRITE(client_message->client_update.position);
         WRITE(client_message->client_update.speed);
         break;
 
