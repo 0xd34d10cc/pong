@@ -1,8 +1,13 @@
 #include "ppm.h"
 
 #include <stdio.h>
+
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+#include "log.h"
 
 void ppm_close(PPM* image) {
   free(image->data);
@@ -15,7 +20,7 @@ void ppm_close(PPM* image) {
 // 0  0  0    0 15  7    0  0  0    0  0  0
 // 0  0  0    0  0  0    0 15  7    0  0  0
 // 15  0 15    0  0  0    0  0  0    0  0  0
-static int ppm_load(PPM* image, FILE* file) {
+static int ppm_load(PPM* image, FILE* file)   {
   char buffer[128];
 
   if (!fgets(buffer, sizeof(buffer), file)) {

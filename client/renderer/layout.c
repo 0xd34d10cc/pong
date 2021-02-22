@@ -1,6 +1,10 @@
 #include "layout.h"
 #include "panic.h"
+#include "vgl.h"
 
+#ifdef WIN32
+#include <gl/GL.h>
+#endif
 
 void layout_init(VertexLayout* layout) {
   layout->n = 0;

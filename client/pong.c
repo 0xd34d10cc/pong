@@ -1,6 +1,8 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "pong.h"
 
 #include "log.h"
+#include "panic.h"
 #include "game/protocol.h"
 
 #include <SDL2/SDL_video.h>

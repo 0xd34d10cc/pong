@@ -1,3 +1,6 @@
+#ifdef WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>

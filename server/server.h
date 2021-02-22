@@ -1,11 +1,17 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#ifndef WIN32
 #include <stdatomic.h>
-
 #include <netinet/in.h>
-
 #include "net/reactor.h"
+#else 
+#define _CRT_SECURE_NO_WARNINGS
+#include "net/reactor.h"
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
 #include "net/tcp_stream.h"
 #include "net/tcp_listener.h"
 #include "game/protocol.h"
@@ -36,7 +42,11 @@ typedef struct Lobby {
 } Lobby;
 
 typedef struct {
+#ifndef WIN32
   atomic_bool running;
+#else
+  LONG running;
+#endif
   Reactor reactor;
   TcpListener listener;
 

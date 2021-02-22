@@ -1,18 +1,19 @@
 #ifndef RECTANGLE_H
 #define RECTANGLE_H
 
+#include <stdbool.h>
 #include "vec2.h"
 
-typedef struct Rectangle {
+typedef struct Rect {
   Vec2 position; // left bottom corner
   Vec2 size;
-} Rectangle;
+} Rect;
 
 inline static bool in_range(float val, float min, float max) {
   return (val >= min) && (val <= max);
 }
 
-inline static bool rect_intersect(const Rectangle* r1, const Rectangle* r2) {
+inline static bool rect_intersect(const Rect* r1, const Rect* r2) {
   float r1_top_right_x = r1->position.x + r1->size.x;
   float r1_top_right_y = r1->position.y + r1->size.y;
 
@@ -31,7 +32,7 @@ inline static bool rect_intersect(const Rectangle* r1, const Rectangle* r2) {
   return x_overlap && y_overlap;
 }
 
-inline static void rect_clamp(Rectangle* inner, const Rectangle* outer) {
+inline static void rect_clamp(Rect* inner, const Rect* outer) {
   if (inner->position.x + inner->size.x > outer->position.x + outer->size.x) {
     inner->position.x = (outer->position.x + outer->size.x) - inner->size.x;
   }
@@ -51,4 +52,4 @@ inline static void rect_clamp(Rectangle* inner, const Rectangle* outer) {
 }
 
 
-#endif // RECTANGLE_H
+#endif // Rect_H

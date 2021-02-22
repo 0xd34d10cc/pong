@@ -1,5 +1,10 @@
 #include "texture.h"
 
+#ifdef WIN32
+#include <windows.h>
+#include <gl/GL.h>
+#endif
+
 int texture_init(Texture* texture) {
   glGenTextures(1, &texture->id);
   texture_bind(texture);

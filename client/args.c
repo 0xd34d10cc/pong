@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "args.h"
 
 #include <stdio.h>
@@ -5,7 +7,13 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#ifndef WIN32
 #include <arpa/inet.h>
+#else 
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <WinSock2.h>
+#endif
+
 
 static const char* DEFAULT_HOST = "127.0.0.1";
 static const int DEFAULT_PORT = 1337;
@@ -127,7 +135,6 @@ bool args_parse(Args* params, char** args, char* error, unsigned int size) {
         snprintf(buff, sizeof(buff), "ip length should be less than %zu", sizeof(params->password) - 1);
         return log_unexpected_value(error, size, flag, ip, buff);
       }
-
       if(inet_addr(ip) == INADDR_NONE) {
         return log_unexpected_value(error, size, flag, ip, "valid ip address");
       }

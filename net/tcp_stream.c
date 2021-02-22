@@ -4,11 +4,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
 
 int tcp_init(TcpStream* stream, Reactor* loop) {
   int s = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
@@ -18,8 +18,37 @@ int tcp_init(TcpStream* stream, Reactor* loop) {
 
   return tcp_from_socket(stream, loop, s);
 }
+#else
+int tcp_init(TcpStream* stream, Reactor* loop) {
+  // Initialize Winsock
+  WSADATA wsa_data = { 0 };
+  int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+  if (result != 0) {
+    return -1;
+  }
 
+  int family = AF_INET;
+  int type = SOCK_STREAM;
+  int protocol = IPPROTO_TCP;
+ 
+  SOCKET sock = socket(family, type, protocol);;
+  // 0 is blocking, otherwise nonblocking
+  u_long mode = 0;
+  ioctlsocket(sock, FIONBIO, &mode);
+  if (sock == INVALID_SOCKET) {
+    return -1;
+  }
+
+  return tcp_from_socket(stream, loop, sock);
+}
+#endif
+
+
+#ifndef WIN32
 int tcp_from_socket(TcpStream* stream, Reactor* reactor, int socket) {
+#else
+int tcp_from_socket(TcpStream * stream, Reactor * reactor, SOCKET socket) {
+#endif
   stream->state.fd = socket;
   stream->state.events = 0;
   stream->reactor = reactor;
@@ -30,12 +59,20 @@ int tcp_from_socket(TcpStream* stream, Reactor* reactor, int socket) {
 
 void tcp_close(TcpStream* stream) {
   reactor_deregister(stream->reactor, &stream->state);
+#ifndef WIN32
   close(stream->state.fd);
+#else
+  closesocket(stream->state.fd);
+#endif
 }
 
 void tcp_shutdown(TcpStream* stream) {
   reactor_deregister(stream->reactor, &stream->state);
+#ifndef WIN32
   shutdown(stream->state.fd, SHUT_RDWR);
+#else
+  shutdown(stream->state.fd, SD_BOTH);
+#endif
 }
 
 int tcp_start_connect(TcpStream* stream, const char* ip, unsigned short port) {
@@ -80,7 +117,11 @@ int tcp_send(TcpStream* stream) {
   bool success = true;
   int total = 0;
   while (total != stream->to_send) {
+#ifndef WIN32
     int n = send(stream->state.fd, stream->output + total, stream->to_send - total, MSG_NOSIGNAL);
+#else
+    int n = send(stream->state.fd, stream->output + total, stream->to_send - total, 0);
+#endif
     if (n == -1) {
       success = errno == EWOULDBLOCK;
       break;

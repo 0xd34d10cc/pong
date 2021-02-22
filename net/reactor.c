@@ -4,9 +4,12 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifndef WIN32
 #include <sys/epoll.h>
 #include <unistd.h>
-
+#else 
+#include "3rdParty/wepoll.h"
+#endif
 
 int reactor_init(Reactor* reactor) {
   int poll = epoll_create(1);
@@ -19,7 +22,11 @@ int reactor_init(Reactor* reactor) {
 }
 
 void reactor_close(Reactor* reactor) {
+#ifdef WIN32
+  epoll_close(reactor->poll);
+#else
   close(reactor->poll);
+#endif // WIN32
 }
 
 // Checks if |object| is already subscribed to |events|
@@ -29,7 +36,11 @@ static bool is_subscribed(Evented* object, unsigned events) {
 
 // Convert reactor events to epoll events
 static unsigned to_epoll(unsigned events) {
+#ifndef WIN32
   unsigned epoll_events = EPOLLET;
+#else
+  unsigned epoll_events = 0;
+#endif
 
   if (events & IO_EVENT_READ) {
     epoll_events |= EPOLLIN;
@@ -89,9 +100,8 @@ int reactor_deregister(Reactor* reactor, Evented* object) {
   return epoll_ctl(reactor->poll, EPOLL_CTL_DEL, object->fd, NULL);
 }
 
-
+#define MAX_EVENTS 64
 int reactor_poll(Reactor* reactor, IOEvent* events, int n_events, int timeout_ms) {
-  static const int MAX_EVENTS = 64;
   struct epoll_event epoll_events[MAX_EVENTS];
   // TODO: handle this case properly
   if (n_events > MAX_EVENTS) {

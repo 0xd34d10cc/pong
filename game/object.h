@@ -14,7 +14,7 @@ typedef enum {
 } CollisionType;
 
 typedef struct {
-  Rectangle bbox;
+  Rect bbox;
   Vec2 speed;
   TextureID texture;
   CollisionType collision_type;

@@ -1,6 +1,12 @@
 #ifndef REACTOR_H
 #define REACTOR_H
 
+#ifdef WIN32
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif 
+
 enum {
   IO_EVENT_READ  = (1 << 0),
   IO_EVENT_WRITE = (1 << 1),
@@ -12,7 +18,11 @@ typedef struct Reactor {
 
 
 typedef struct Evented {
+#ifndef WIN32
   int fd;
+#else
+  SOCKET fd;
+#endif
   unsigned events;
 } Evented;
 

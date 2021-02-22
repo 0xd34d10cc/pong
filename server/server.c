@@ -2,13 +2,33 @@
 
 #include <errno.h>
 #include <string.h>
+#ifndef WIN32
 #include <stdalign.h>
+#endif
+
+#include <stdint.h>
 #include <stdbool.h>
 
+#ifndef WIN32
 #include <arpa/inet.h>
 #include <sys/timerfd.h>
+#endif
 
 #include "log.h"
+
+
+#ifndef WIN32
+static int atomic_store_c(atomic_bool* atomic, bool val) {
+  atomic_store(atomic, val);
+  return 0;
+}
+#else
+static int atomic_store_c(LONG* atomic, bool val) {
+  InterlockedExchange(atomic, (LONG)val);
+  return 0;
+}
+#endif
+
 
 
 static int connection_id(Connection* connection) {
@@ -16,7 +36,7 @@ static int connection_id(Connection* connection) {
 }
 
 int server_init(Server* server, const char* ip, unsigned short port) {
-  atomic_store(&server->running, false);
+  atomic_store_c(&server->running, false);
 
   if (reactor_init(&server->reactor) == -1) {
     LOG_ERROR("Failed to initialize reactor: %s", strerror(errno));
@@ -31,12 +51,20 @@ int server_init(Server* server, const char* ip, unsigned short port) {
   pool_init(
     &server->connections,
     server->connections_memory, sizeof(server->connections_memory),
+#ifndef WIN32
     sizeof(Connection), alignof(Connection)
+#else
+    sizeof(Connection), _Alignof(Connection)
+#endif
   );
   pool_init(
     &server->lobbies,
     server->lobbies_memory, sizeof(server->lobbies_memory),
+#ifndef WIN32
     sizeof(Lobby), alignof(Lobby)
+#else
+    sizeof(Lobby), _Alignof(Lobby)
+#endif
   );
 
   int timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
@@ -435,7 +463,7 @@ static void server_disconnect(Server* server, Connection* connection) {
   }
 }
 
-static const int MAX_EVENTS = 64;
+#define MAX_EVENTS 64
 static const int POLL_INTERVAL_MS = 128;
 
 int server_run(Server* server) {
@@ -458,7 +486,7 @@ int server_run(Server* server) {
     return -1;
   }
 
-  atomic_store(&server->running, true);
+  atomic_store_c(&server->running, true);
 
   IOEvent events[MAX_EVENTS];
   while (atomic_load(&server->running)) {
@@ -513,7 +541,7 @@ int server_run(Server* server) {
 }
 
 void server_stop(Server* server) {
-  atomic_store(&server->running, false);
+  atomic_store_c(&server->running, false);
 }
 
 void server_close(Server* server) {

@@ -3,6 +3,8 @@
 
 #define LAYOUT_MAX_FIELDS 16
 
+#include <stdbool.h>
+
 #include "types.h"
 
 typedef enum {

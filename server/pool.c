@@ -2,7 +2,9 @@
 
 #include <assert.h>
 #include <stddef.h>
+#ifndef WIN32
 #include <stdalign.h>
+#endif
 #include <string.h>
 
 // obtain a pointer to start of "in use" bitmask
@@ -27,8 +29,11 @@ static void pool_slot_set(Pool* pool, int index, bool taken) {
 void pool_init(Pool* pool, char* memory, int capacity, int object_size, int alignment) {
   assert((intptr_t)memory % alignment == 0);
   assert(object_size >= sizeof(void*));
+#ifndef WIN32
   assert(alignment >= alignof(void*));
-
+#else
+  assert(alignment >= _Alignof(void*));
+#endif
   pool->memory = memory;
   pool->capacity = capacity;
 

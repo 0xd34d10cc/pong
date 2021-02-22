@@ -3,6 +3,7 @@
 #include "game/game.h"
 #include "log.h"
 #include "ppm.h"
+//#include "panic.h"
 
 #include <assert.h>
 
@@ -238,7 +239,8 @@ static bool gen_texture(Texture* texture, TextureID id) {
     case TEXTURE_BLUE:
       return gen_uniform_texture(texture, 0x00, 0x00, 0xff);
     default:
-      PANIC("Unable to generate texture with id = %d", id);
+      return false;
+      //PANIC("Unable to generate texture with id = %d", id);
   }
 
   return false;

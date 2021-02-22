@@ -1,6 +1,14 @@
 #ifndef PPM_H
 #define PPM_H
 
+#ifdef WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
+#include <stddef.h>
+
+
+
 typedef struct {
   unsigned char* data;
   size_t width;

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 
 #define HIT_SPEED_INC 0.00025
 
@@ -149,7 +150,7 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
 }
 
 // speed in unit/ms
-static const float PLAYER_SPEED = 0.001;
+#define PLAYER_SPEED 0.001
 static const float BALL_SPEED = PLAYER_SPEED/2;
 static const float WALL_THICKNESS = 1.0;
 static const float WALL_LENGTH = 2.0;
@@ -234,7 +235,7 @@ void game_step_begin(Game* game) {
 }
 
 void game_advance_time(Game* game, float dt) {
-  static const Rectangle board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
+  static const Rect board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
   GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
 
   for(int i = 0; i < sizeof(objects) / sizeof(GameObject*); ++i) {

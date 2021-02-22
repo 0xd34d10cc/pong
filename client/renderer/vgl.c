@@ -1,6 +1,8 @@
 #include "vgl.h"
 
+#ifdef WIN32
 #include <SDL2/SDL_video.h>
+#endif
 
 #define TRY_LOAD(name)                         \
   do {                                         \

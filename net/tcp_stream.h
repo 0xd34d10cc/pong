@@ -26,7 +26,11 @@ typedef struct TcpStream {
 int tcp_init(TcpStream* stream, Reactor* loop);
 
 // Init tcp stream from existing socket (e.g. from accept())
+#ifndef WIN32
 int tcp_from_socket(TcpStream* stream, Reactor* loop, int socket);
+#else 
+int tcp_from_socket(TcpStream* stream, Reactor* loop, SOCKET socket);
+#endif
 
 // Close tcp stream
 void tcp_close(TcpStream* stream);
