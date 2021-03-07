@@ -407,7 +407,6 @@ void pong_run(Pong* pong) {
   pong->running = true;
   struct timeval prev_update = (struct timeval){.tv_sec = 0, .tv_usec = 0};
 
-  int updates_count = 0;
   while (pong->running) {
     // process events
     game_step_begin(&pong->game);
@@ -436,9 +435,6 @@ void pong_run(Pong* pong) {
         continue;
       }
       prev_update = curr_update;
-
-      LOG_DEBUG("Update %d sent", updates_count++);
-      
       pong_process_network(pong, TICK_MS);
     }
   }
