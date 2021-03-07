@@ -12,6 +12,7 @@
 #include "renderer/texture.c"
 #include "renderer/layout.c"
 #include "renderer/renderer.c"
+#include "time_helper.c"
 #include "pong.c"
 #include "ppm.c"
 #include "main.c"
