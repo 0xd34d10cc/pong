@@ -66,6 +66,7 @@ static int ppm_load(PPM* image, FILE* file) {
 
   if (fgetc(file) != EOF) {
     LOG_DEBUG("Extra data left after reading ppm image");
+    free(image->data);
     return -1;
   }
 

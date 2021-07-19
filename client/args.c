@@ -12,7 +12,6 @@ static const int DEFAULT_PORT = 1337;
 static const char* GAME_MODES = "local, create, join";
 
 void args_init(Args* params) {
-
   // fill params with default values;
   params->password[0] = '\0';
   params->port = DEFAULT_PORT;

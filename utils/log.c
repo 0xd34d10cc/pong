@@ -1,6 +1,7 @@
 #include "log.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -19,6 +20,9 @@ void game_log(LogLevel log_level, const char* file, int line, const char* format
 
   const char* level = "???";
   switch (log_level) {
+    case LOG_LEVEL_DEBUG:
+      level = "DEBUG";
+      break;
     case LOG_LEVEL_INFO:
       level = "INFO ";
       break;
@@ -28,8 +32,8 @@ void game_log(LogLevel log_level, const char* file, int line, const char* format
     case LOG_LEVEL_ERROR:
       level = "ERROR";
       break;
-    case LOG_LEVEL_DEBUG:
-      level = "DEBUG";
+    case LOG_LEVEL_FATAL:
+      level = "FATAL";
       break;
   }
 
@@ -40,10 +44,14 @@ void game_log(LogLevel log_level, const char* file, int line, const char* format
   strftime(log_time, sizeof(log_time), "%T", &utc);
 
 
-  if(log_level == LOG_LEVEL_DEBUG) {
+  if (log_level == LOG_LEVEL_DEBUG || log_level == LOG_LEVEL_FATAL) {
     fprintf(stderr, "%s [%s] %s:%d %s%s\n", log_time, level, file, line, message, truncated);
   }
   else {
     fprintf(stderr, "%s [%s] %s%s\n", log_time, level, message, truncated);
+  }
+
+  if (log_level == LOG_LEVEL_FATAL) {
+    abort();
   }
 }

@@ -23,7 +23,7 @@ typedef struct {
 static const Collision NO_COLLISION = {.time = INFINITY };
 
 static void min_collision(Collision* lhs, Collision* rhs) {
-  if(rhs->time < lhs->time) {
+  if (rhs->time < lhs->time) {
     memcpy(lhs, rhs, sizeof(Collision));
   }
 }
@@ -69,7 +69,7 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
 
   float dx_entry;
   float dx_exit;
-  if(is_ball_moves_right) {
+  if (is_ball_moves_right) {
     const float ball_x_entry = ball->bbox.position.x + ball->bbox.size.x;
     const float wall_x_entry = wall->bbox.position.x;
     dx_entry = wall_x_entry - ball_x_entry;
@@ -93,7 +93,7 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
 
   float dy_entry;
   float dy_exit;
-  if(is_ball_moves_top) {
+  if (is_ball_moves_top) {
     const float ball_y_entry = ball->bbox.position.y + ball->bbox.size.y;
     const float wall_y_entry = wall->bbox.position.y;
 
@@ -125,13 +125,13 @@ static Collision find_wall_collision(GameObject* ball, GameObject* wall, float d
   const float entry_time = x_entry_time > y_entry_time ? x_entry_time : y_entry_time;
   const float exit_time = x_exit_time < y_exit_time ? x_exit_time : y_exit_time;
 
-  if(entry_time > exit_time || x_entry_time < 0 && y_entry_time < 0 ||
+  if (entry_time > exit_time || x_entry_time < 0 && y_entry_time < 0 ||
     x_entry_time > dt || y_entry_time > dt) {
-      return NO_COLLISION;
+    return NO_COLLISION;
   }
 
   Vec2 normal;
-  if(x_entry_time > y_entry_time) {
+  if (x_entry_time > y_entry_time) {
     normal.y = 0.0;
     normal.x = dx_entry < 0.0 ? 1.0 : -1.0;
   }
@@ -237,7 +237,7 @@ void game_advance_time(Game* game, float dt) {
   static const Rectangle board = { .position = { -1.0, -1.0}, .size = { 2.0, 2.0 } };
   GameObject* objects[] = { &game->player, &game->opponent, &game->ball };
 
-  for(int i = 0; i < sizeof(objects) / sizeof(GameObject*); ++i) {
+  for (int i = 0; i < sizeof(objects) / sizeof(GameObject*); ++i) {
     objects[i]->bbox.position = vec2_add(objects[i]->bbox.position, vec2_mul(objects[i]->speed, dt));
     rect_clamp(&objects[i]->bbox, &board);
   }
@@ -257,12 +257,12 @@ void game_step_end(Game* game, float dt) {
     Collision opponent_collision = find_player_collision(&game->opponent, &game->ball, dt);
     min_collision(&collision, &opponent_collision);
 
-    for(int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 4; ++i) {
       Collision wall_collision = find_wall_collision(&game->ball, &game->walls[i], dt);
       min_collision(&collision, &wall_collision);
     }
 
-    if(collision.time > dt) {
+    if (collision.time > dt) {
       game_advance_time(game, dt);
       dt = 0.0;
     }
@@ -283,17 +283,17 @@ void game_step_end(Game* game, float dt) {
           break;
 
         case COLLISION_BOUNCE:
-          if(collision.normal.x != 0.0) {
+          if (collision.normal.x != 0.0) {
             collision.what->speed.x *= -1.0;
           }
 
-          if(collision.normal.y != 0.0) {
+          if (collision.normal.y != 0.0) {
             collision.what->speed.y *= -1.0;
           }
           break;
 
         case COLLISION_PLAYER:
-          if(collision.with_what->speed.x != 0.0 && (collision.with_what->speed.x > 0.0) != (collision.what->speed.x > 0.0)) {
+          if (collision.with_what->speed.x != 0.0 && (collision.with_what->speed.x > 0.0) != (collision.what->speed.x > 0.0)) {
             collision.what->speed.x *= -1.0;
           }
 

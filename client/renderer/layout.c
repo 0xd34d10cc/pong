@@ -1,5 +1,4 @@
 #include "layout.h"
-#include "panic.h"
 
 
 void layout_init(VertexLayout* layout) {
@@ -14,7 +13,7 @@ static int field_size(FieldType type) {
     case LAYOUT_FIELD_TYPE_BYTES:
       return 1;
     default:
-      PANIC("Invlaid field type: %d", type);
+      LOG_FATAL("Invlaid field type: %d", type);
   }
 }
 
@@ -25,19 +24,20 @@ static int translate_type(FieldType type) {
     case LAYOUT_FIELD_TYPE_BYTES:
       return GL_UNSIGNED_BYTE;
     default:
-      PANIC("Invalid field type: %d", type);
+      LOG_FATAL("Invalid field type: %d", type);
   }
 }
 
 void layout_float(VertexLayout* layout, AttributeID id, unsigned short count) {
   if (layout->n >= LAYOUT_MAX_FIELDS) {
-    PANIC("Unsupported number of fields for vertex layout");
+    LOG_FATAL("Unsupported number of fields for vertex layout");
   }
 
   FieldType type = LAYOUT_FIELD_TYPE_FLOAT;
   layout->fields[layout->n] = (VertexFieldDescription) {
     .id = id,
     .n = count,
+
     .type = type,
     .normalized = false
   };
@@ -47,7 +47,7 @@ void layout_float(VertexLayout* layout, AttributeID id, unsigned short count) {
 
 void layout_bytes(VertexLayout* layout, AttributeID id, unsigned short count) {
   if (layout->n >= LAYOUT_MAX_FIELDS) {
-    PANIC("Unsupported number of fields for vertex layout");
+    LOG_FATAL("Unsupported number of fields for vertex layout");
   }
 
   FieldType type = LAYOUT_FIELD_TYPE_BYTES;

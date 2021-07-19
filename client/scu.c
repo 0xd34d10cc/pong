@@ -1,7 +1,6 @@
 #include "log.c"
 #include "args.c"
 #include "game/game.c"
-#include "panic.c"
 #include "game/vec2.c"
 #include "game/protocol.c"
 #include "net/reactor.c"

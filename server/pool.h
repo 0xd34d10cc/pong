@@ -38,7 +38,7 @@ void* pool_at(Pool* pool, int index);
 int pool_index(Pool* pool, void* object);
 // returns number of objects allocated in the pool
 int pool_size(Pool* pool);
-// returns maximum number of objects that could be allocate in pool
+// returns maximum number of objects that could be allocated in pool
 int pool_capacity(Pool* pool);
 
 // returns a pointer to the first object in pool

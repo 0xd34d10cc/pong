@@ -1,5 +1,4 @@
 #include "utils/log.c"
-#include "utils/panic.c"
 #include "game/protocol.c"
 #include "game/vec2.c"
 #include "game/game.c"

@@ -3,9 +3,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "panic.h"
-
-
 static const size_t HEADER_SIZE = sizeof(unsigned short) + sizeof(unsigned short);
 
 #define READ(field)                               \
@@ -163,7 +160,7 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
         WRITE(server_message->game_state_update.state);
         break;
       default:
-        PANIC("Unhandled message id: %d", server_message->id);
+        LOG_FATAL("Unhandled message id: %d", server_message->id);
         break;
     }
 
@@ -187,7 +184,7 @@ static int write_message(const void* message, char* data, size_t size, bool is_s
         WRITE(client_message->client_state_update.state);
         break;
       default:
-        PANIC("Unhandled message id: %d", client_message->id);
+        LOG_FATAL("Unhandled message id: %d", client_message->id);
         break;
     }
 

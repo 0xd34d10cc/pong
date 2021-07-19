@@ -60,7 +60,6 @@ typedef struct {
   Vec2 player_position;
   Vec2 opponent_position;
   Vec2 ball_position;
-
 } ServerUpdate;
 
 //Enum of possible client states

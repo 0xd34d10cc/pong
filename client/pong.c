@@ -186,7 +186,7 @@ static int prepare_client_message(Pong* pong) {
       break;
     }
     default:
-      PANIC("UNHANDLED GAME SESSION STATE: %d", pong->game_session.state);
+      LOG_FATAL("Unhandled game session state: %d", pong->game_session.state);
   }
 
   return 0;
@@ -394,7 +394,7 @@ static void pong_render(Pong* pong) {
       break;
     }
     default:
-      PANIC("UNHANDLED GAME STATE");
+      LOG_FATAL("UNHANDLED GAME STATE");
       break;
   }
 }

@@ -110,7 +110,6 @@ static void lobby_init(Lobby* lobby, Connection* owner, const char* password) {
   lobby->owner = owner;
   lobby->guest = NULL;
   strcpy(lobby->password, password);
-  // FIXME: unhardcode the board size
   game_init(&lobby->game, true);
 }
 
@@ -118,7 +117,7 @@ static int server_create_lobby(Server* server, Connection* owner, CreateLobby* m
   if (owner->lobby != NULL) {
     int lobby_id = pool_index(&server->lobbies, owner->lobby);
     LOG_INFO("[%02d] Failed to create game lobby: client already in lobby #%d", connection_id(owner), lobby_id);
-    // TODO: disconnect from current lobby and create a new one instead
+    // TODO: disconnect from current lobby and create a new one instead?
     return send_error(owner, INTERNAL_ERROR);
   }
 
