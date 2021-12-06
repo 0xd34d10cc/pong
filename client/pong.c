@@ -2,6 +2,7 @@
 
 #include "log.h"
 #include "game/protocol.h"
+#include "time_helper.h"
 
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_events.h>
@@ -400,9 +401,11 @@ static void pong_render(Pong* pong) {
 }
 
 static const int TICK_MS = 15;
+static const struct timeval MIN_UPDATES_TIME_DIFF = (struct timeval) {.tv_sec = 0, .tv_usec = 16700 };
 
 void pong_run(Pong* pong) {
   pong->running = true;
+  struct timeval prev_update = (struct timeval){.tv_sec = 0, .tv_usec = 0};
 
   while (pong->running) {
     // process events
@@ -424,6 +427,14 @@ void pong_run(Pong* pong) {
       SDL_Delay(TICK_MS);
     }
     else {
+      struct timeval curr_update;
+      gettimeofday(&curr_update, NULL);
+
+      struct timeval difference = timeval_subtract(curr_update, prev_update);
+      if (timeval_compare(&difference, &MIN_UPDATES_TIME_DIFF) == 1) {
+        continue;
+      }
+      prev_update = curr_update;
       pong_process_network(pong, TICK_MS);
     }
   }
